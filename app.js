@@ -1,6 +1,7 @@
-// GameVault v3.0.0 - Backend PIX Automático
-const API = ''; // vazio = mesmo domínio, ou 'http://localhost:3000'
-const PIX_KEY = 'fff503e1-60b3-457b-bdc4-ddf2c892cfda';
+// GameVault v4.0.0 - Admin Hidden Panel + Ban System
+const API='';
+const PIX_KEY='fff503e1-60b3-457b-bdc4-ddf2c892cfda';
+const ADMINS=['Nicolas21301012@gmail.com','dohypemeno5@gmail.com','admin@gamevault.com'];
 
 const GAMES=[
     {id:1,name:"Quiz Milionário",category:"trivia",icon:"🧠",prize:150,entry:5,players:2340,badge:"hot"},
@@ -29,25 +30,22 @@ const QUIZ_Q=[
     {q:"Independência do Brasil?",opts:["1808","1822","1889","1500"],c:1},
     {q:"Maior oceano?",opts:["Atlântico","Índico","Pacífico","Ártico"],c:2},
     {q:"Mona Lisa?",opts:["Picasso","Van Gogh","Da Vinci","Rembrandt"],c:2},
-    {q:"Velocidade da luz km/s?",opts:["200.000","300.000","400.000","500.000"],c:1},
+    {q:"Velocidade da luz?",opts:["200.000","300.000","400.000","500.000"],c:1},
     {q:"Maior país?",opts:["China","EUA","Canadá","Rússia"],c:3},
     {q:"Ossos humanos?",opts:["186","206","226","256"],c:1},
     {q:"Animal mais rápido?",opts:["Leão","Guepardo","Gazela","Tigre"],c:1}
 ];
 
-let state={user:null,currentGame:null,quiz:{i:0,s:0,q:[]},sessionStart:Date.now(),realityShown:false};
+let state={user:null,admin:null,currentGame:null,quiz:{i:0,s:0,q:[]},sessionStart:Date.now(),realityShown:false};
 function $(id){return document.getElementById(id);}
-function save(){if(state.user)localStorage.setItem('gv_user',JSON.stringify(state.user));}
-function defUser(email,name){return{email,name,balance:50,deposit:0,played:0,won:0,withdrawn:0,kyc:'pending',limits:{daily:500,weekly:2000,monthly:5000},selfExclusion:null,transactions:[{t:'bonus',a:50,d:'Bônus cadastro',dt:fmt()}],history:[]};}
+function save(){if(state.user)localStorage.setItem('gv_user',JSON.stringify(state.user));if(state.admin)localStorage.setItem('gv_admin',JSON.stringify(state.admin));}
+function defUser(email,name){return{email,name,balance:50,deposit:0,played:0,won:0,withdrawn:0,kyc:'pending',limits:{daily:500,weekly:2000,monthly:5000},selfExclusion:null,transactions:[{t:'bonus',a:50,d:'Bônus cadastro',dt:fmt()}],history:[],createdAt:new Date().toISOString()};}
 function fmt(){return new Date().toLocaleDateString('pt-BR');}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function isAdmin(email){return ADMINS.includes(email);}
 
 async function api(path,body){
-    try{
-        const opts=body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{};
-        const r=await fetch(API+path,opts);
-        return await r.json();
-    }catch(e){console.error('API Error:',e);return{error:e.message};}
+    try{const opts=body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{};const r=await fetch(API+path,opts);return await r.json();}catch(e){return{error:e.message};}
 }
 
 // ===== PAGES =====
@@ -72,84 +70,142 @@ function renderPage(p){
     }
 }
 
-// ===== HOME =====
 function renderHome(){const g=$('featuredGames');if(g)g.innerHTML=GAMES.filter(x=>x.badge).map(gameCard).join('');}
 
-// ===== GAMES =====
-function renderGames(cat='all'){
-    const el=$('allGames');if(!el)return;
-    el.innerHTML=(cat==='all'?GAMES:GAMES.filter(x=>x.category===cat)).map(gameCard).join('');
-}
-function filterGames(cat){
-    renderGames(cat);
-    document.querySelectorAll('.games-filters .filter-btn').forEach(b=>{const t=b.textContent.trim();b.classList.toggle('active',t===(cat==='all'?'Todos':cat==='skill'?'Habilidade':cat==='trivia'?'Quiz':cat==='puzzle'?'Puzzle':'Arcade'));});
-}
+function renderGames(cat='all'){const el=$('allGames');if(!el)return;el.innerHTML=(cat==='all'?GAMES:GAMES.filter(x=>x.category===cat)).map(gameCard).join('');}
+function filterGames(cat){renderGames(cat);document.querySelectorAll('.games-filters .filter-btn').forEach(b=>{const t=b.textContent.trim();b.classList.toggle('active',t===(cat==='all'?'Todos':cat==='skill'?'Habilidade':cat==='trivia'?'Quiz':cat==='puzzle'?'Puzzle':'Arcade'));});}
 function gameCard(g){return `<div class="game-card" onclick="playGame(${g.id})"><div class="game-thumb">${g.icon}${g.badge?`<span class="game-badge badge-${g.badge}">${g.badge==='hot'?'🔥 Pop':g.badge==='new'?'✨ Novo':'⭐ VIP'}</span>`:''}</div><div class="game-info"><h3>${g.name}</h3><div class="game-cat">${g.category} • ${g.players.toLocaleString()} jogadores</div><div class="game-meta"><span class="game-prize">R$ ${g.prize},00</span><button class="game-play" onclick="event.stopPropagation();playGame(${g.id})">Jogar R$ ${g.entry}</button></div></div></div>`;}
 
 // ===== MODAL =====
 function showModal(type){
-    const o=$('modalOverlay');if(!o)return;
-    const c=o.querySelector('#modalContent')||o.querySelector('.modal');if(!c)return;
+    const o=$('modalOverlay');if(!o)return;const c=o.querySelector('#modalContent')||o.querySelector('.modal');if(!c)return;
     o.classList.add('open');o.style.display='flex';
-    if(type==='login'){
-        c.innerHTML=`<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2>Entrar</h2><div class="input-group"><label>Email</label><input type="email" id="loginEmail" placeholder="seu@email.com"></div><div class="input-group"><label>Senha</label><input type="password" id="loginPass" placeholder="••••••"></div><button class="btn btn-primary" onclick="doLogin()"><i class="fas fa-sign-in-alt"></i> Entrar</button><div class="alt-action">Não tem conta? <a href="#" onclick="showModal('register')">Cadastre-se</a></div>`;
-    }else if(type==='register'){
-        c.innerHTML=`<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2>Criar Conta</h2><div class="input-group"><label>Nome</label><input type="text" id="regName" placeholder="Seu nome"></div><div class="input-group"><label>Email</label><input type="email" id="regEmail" placeholder="seu@email.com"></div><div class="input-group"><label>Senha</label><input type="password" id="regPass" placeholder="Min 6 caracteres"></div><div class="input-group"><label><input type="checkbox" id="regAge"> Tenho 18+</label></div><button class="btn btn-primary" onclick="doRegister()"><i class="fas fa-user-plus"></i> Cadastrar</button><div class="alt-action">Já tem conta? <a href="#" onclick="showModal('login')">Entrar</a></div>`;
-    }else if(type==='deposit'){
-        c.innerHTML=`<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2><i class="fas fa-coins" style="color:var(--accent-gold);"></i> Depositar via PIX</h2><p style="color:var(--text-secondary);text-align:center;margin-bottom:20px;">Pagamento automático. Credita na hora!</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;"><button class="btn btn-outline" onclick="startDeposit(5)" style="font-size:18px;padding:20px;"><i class="fas fa-coins"></i><br>R$ 5</button><button class="btn btn-outline" onclick="startDeposit(10)" style="font-size:18px;padding:20px;"><i class="fas fa-coins"></i><br>R$ 10</button><button class="btn btn-outline" onclick="startDeposit(15)" style="font-size:18px;padding:20px;"><i class="fas fa-coins"></i><br>R$ 15</button><button class="btn btn-primary" onclick="startDeposit(20)" style="font-size:18px;padding:20px;"><i class="fas fa-fire"></i><br>R$ 20</button></div><div class="input-group"><label>Ou digite o valor</label><input type="number" id="customDeposit" placeholder="Ex: 30" min="1"><button class="btn btn-primary" onclick="startDeposit(Number($('customDeposit').value))" style="width:100%;margin-top:8px;">Gerar PIX</button></div>`;
-    }else if(type==='pix'){
-        c.innerHTML=`<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2><i class="fas fa-qrcode" style="color:var(--accent-cyan);"></i> PIX Copia e Cola</h2><div style="text-align:center;margin-bottom:16px;"><div style="font-size:36px;font-weight:900;color:var(--accent-gold);margin-bottom:8px;">R$ ${window._depAmt},00</div><p style="color:var(--text-secondary);font-size:13px;">Pagamento instantâneo</p></div><div style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:16px;word-break:break-all;font-size:11px;font-family:JetBrains Mono,monospace;margin-bottom:16px;user-select:all;" id="pixCode">${window._depPayload||'Aguardando...'}</div><button class="btn btn-primary" onclick="copyPix()" style="width:100%;margin-bottom:8px;"><i class="fas fa-copy"></i> Copiar Código PIX</button><button class="btn btn-success" onclick="confirmDeposit()" style="width:100%;margin-bottom:12px;"><i class="fas fa-check"></i> Já Paguei — Confirmar</button><p style="color:var(--text-secondary);font-size:12px;text-align:center;">Ou aguarde a confirmação automática.</p><div id="pixStatus" style="text-align:center;margin-top:12px;color:var(--accent-cyan);font-size:13px;display:none;"><i class="fas fa-spinner fa-spin"></i> Aguardando pagamento...</div>`;
-    }
+    if(type==='login'){c.innerHTML=`<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2>Entrar</h2><div class="input-group"><label>Email</label><input type="email" id="loginEmail" placeholder="seu@email.com"></div><div class="input-group"><label>Senha</label><input type="password" id="loginPass" placeholder="••••••"></div><button class="btn btn-primary" onclick="doLogin()"><i class="fas fa-sign-in-alt"></i> Entrar</button><div class="alt-action">Não tem conta? <a href="#" onclick="showModal('register')">Cadastre-se</a></div><div style="text-align:center;margin-top:12px;"><button class="btn btn-outline btn-sm" onclick="showModal('adminLogin')" style="font-size:11px;padding:6px 12px;"><i class="fas fa-user-shield"></i> Admin</button></div>`;}
+    else if(type==='register'){c.innerHTML=`<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2>Criar Conta</h2><div class="input-group"><label>Nome</label><input type="text" id="regName" placeholder="Seu nome"></div><div class="input-group"><label>Email</label><input type="email" id="regEmail" placeholder="seu@email.com"></div><div class="input-group"><label>Senha</label><input type="password" id="regPass" placeholder="Min 6"></div><div class="input-group"><label><input type="checkbox" id="regAge"> Tenho 18+</label></div><button class="btn btn-primary" onclick="doRegister()"><i class="fas fa-user-plus"></i> Cadastrar</button><div class="alt-action">Já tem conta? <a href="#" onclick="showModal('login')">Entrar</a></div>`;}
+    else if(type==='adminLogin'){c.innerHTML=`<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2><i class="fas fa-user-shield" style="color:var(--accent-purple);"></i> Admin</h2><div class="input-group"><label>Email Admin</label><input type="email" id="adminEmail" placeholder="admin@email.com"></div><div class="input-group"><label>Senha Admin</label><input type="password" id="adminPass" placeholder="••••"></div><button class="btn btn-primary" onclick="doAdminLogin()"><i class="fas fa-sign-in-alt"></i> Entrar</button><p style="color:var(--text-secondary);font-size:12px;text-align:center;margin-top:12px;">Acesso restrito a administradores.</p>`;}
+    else if(type==='deposit'){c.innerHTML=`<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2><i class="fas fa-coins" style="color:var(--accent-gold);"></i> Depositar via PIX</h2><p style="color:var(--text-secondary);text-align:center;margin-bottom:20px;">Pagamento automático!</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;"><button class="btn btn-outline" onclick="startDeposit(5)" style="font-size:18px;padding:20px;"><i class="fas fa-coins"></i><br>R$ 5</button><button class="btn btn-outline" onclick="startDeposit(10)" style="font-size:18px;padding:20px;"><i class="fas fa-coins"></i><br>R$ 10</button><button class="btn btn-outline" onclick="startDeposit(15)" style="font-size:18px;padding:20px;"><i class="fas fa-coins"></i><br>R$ 15</button><button class="btn btn-primary" onclick="startDeposit(20)" style="font-size:18px;padding:20px;"><i class="fas fa-fire"></i><br>R$ 20</button></div><div class="input-group"><label>Valor customizado</label><input type="number" id="customDeposit" placeholder="Ex: 30" min="1"><button class="btn btn-primary" onclick="startDeposit(Number($('customDeposit').value))" style="width:100%;margin-top:8px;">Gerar PIX</button></div>`;}
+    else if(type==='pix'){c.innerHTML=`<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2><i class="fas fa-qrcode" style="color:var(--accent-cyan);"></i> PIX</h2><div style="text-align:center;margin-bottom:16px;"><div style="font-size:36px;font-weight:900;color:var(--accent-gold);margin-bottom:8px;">R$ ${window._depAmt},00</div></div><div style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:16px;word-break:break-all;font-size:11px;font-family:monospace;margin-bottom:16px;user-select:all;" id="pixCode">${window._depPayload||'Gerando...'}</div><button class="btn btn-primary" onclick="copyPix()" style="width:100%;margin-bottom:8px;"><i class="fas fa-copy"></i> Copiar PIX</button><button class="btn btn-success" onclick="confirmDeposit()" style="width:100%;margin-bottom:12px;"><i class="fas fa-check"></i> Já Paguei</button><div id="pixStatus" style="text-align:center;color:var(--accent-cyan);font-size:13px;display:none;"><i class="fas fa-spinner fa-spin"></i> Aguardando...</div>`;}
 }
 function closeModal(){const o=$('modalOverlay');if(o){o.classList.remove('open');o.style.display='none';}}
 document.addEventListener('DOMContentLoaded',()=>{const o=$('modalOverlay');if(o)o.addEventListener('click',e=>{if(e.target===o)closeModal();});});
+
+// ===== ADMIN AUTH =====
+async function doAdminLogin(){
+    const email=($('adminEmail')||{}).value||'';const pass=($('adminPass')||{}).value||'';
+    if(!email||!pass){showToast('Preencha tudo','error');return;}
+    const res=await api('/api/admin/login',{email,password:pass});
+    if(res.ok){
+        state.admin=res.admin;save();closeModal();
+        showToast(`Admin conectado! Bem-vindo ${res.admin.email}`,'success');
+        showPage('admin');
+    }else{showToast('Credenciais inválidas','error');}
+}
+
+// ===== ADMIN PANEL =====
+async function renderAdmin(){
+    if(!state.admin){showModal('adminLogin');return;}
+    const el=$('adminContent');if(!el)return;
+    const stats=await api('/api/admin/stats');
+    const data=await api('/api/admin/users');
+    const users=data.users||[];
+    const banned=data.banned||[];
+    el.innerHTML=`
+    <div style="background:linear-gradient(135deg,var(--accent-purple),var(--accent-cyan));border-radius:var(--radius);padding:24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;">
+        <div><h2 style="color:#fff;margin-bottom:4px;">👑 Painel Admin</h2><p style="color:rgba(255,255,255,0.8);font-size:13px;">${state.admin.email} • ${state.admin.role}</p></div>
+        <button class="btn btn-outline" onclick="state.admin=null;localStorage.removeItem('gv_admin');showPage('home');" style="border-color:rgba(255,255,255,0.3);color:#fff;">Sair</button>
+    </div>
+    <div class="dash-stats">
+        <div class="dash-stat"><div class="label">Usuários</div><div class="value">${stats.totalUsers||0}</div></div>
+        <div class="dash-stat"><div class="label">Depositado</div><div class="value" style="color:var(--accent-green);">R$ ${(stats.totalDeposits||0).toFixed(2).replace('.',',')}</div></div>
+        <div class="dash-stat"><div class="label">Sacado</div><div class="value" style="color:var(--accent-red);">R$ ${(stats.totalWithdraws||0).toFixed(2).replace('.',',')}</div></div>
+        <div class="dash-stat"><div class="label">Lucro</div><div class="value" style="color:var(--accent-gold);">R$ ${(stats.profit||0).toFixed(2).replace('.',',')}</div></div>
+    </div>
+    <div class="wallet-card" style="margin-bottom:16px;">
+        <h3><i class="fas fa-search"></i> Buscar</h3>
+        <div class="input-group"><input type="text" id="adminSearch" placeholder="Buscar por email ou nome..." oninput="filterAdminUsers()"></div>
+    </div>
+    <div class="wallet-card">
+        <h3><i class="fas fa-users"></i> Usuários (${users.length})</h3>
+        <div class="table-wrap">
+            <table id="adminTable">
+                <thead><tr><th>Nome</th><th>Email</th><th>Saldo</th><th>Depósito</th><th>Ganho</th><th>Saque</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody>${users.map(u=>{
+                    const isBanned=banned.includes(u.email);
+                    const isAdm=ADMINS.includes(u.email);
+                    return `<tr class="admin-user-row" data-email="${u.email}" data-name="${(u.name||'').toLowerCase()}">
+                        <td><input type="text" value="${u.name||''}" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-primary);font-size:12px;width:100px;" onchange="adminEdit('${u.email}','name',this.value)"></td>
+                        <td style="font-size:11px;">${u.email}${isAdm?'<br><span style="color:var(--accent-gold);font-size:10px;">👑 ADMIN</span>':''}</td>
+                        <td><input type="number" value="${u.balance||0}" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--accent-gold);font-size:12px;width:80px;" onchange="adminEdit('${u.email}','balance',this.value)"></td>
+                        <td style="color:var(--accent-green);font-size:12px;">R$ ${(u.deposit||0).toFixed(2).replace('.',',')}</td>
+                        <td style="font-size:12px;">R$ ${(u.won||0).toFixed(2).replace('.',',')}</td>
+                        <td style="color:var(--accent-red);font-size:12px;">R$ ${(u.withdrawn||0).toFixed(2).replace('.',',')}</td>
+                        <td><span style="color:${isBanned?'var(--accent-red)':u.kyc==='approved'?'var(--accent-green)':'var(--accent-gold)'};font-size:12px;">${isBanned?'🚫 BANIDO':u.kyc==='approved'?'✓ Verificado':'⏳ Pendente'}</span></td>
+                        <td style="white-space:nowrap;">
+                            ${isBanned?`<button class="btn btn-outline btn-sm" style="font-size:10px;padding:4px 8px;" onclick="adminUnban('${u.email}')">Desbanir</button>`:`<button class="btn btn-danger btn-sm" style="font-size:10px;padding:4px 8px;" onclick="adminBan('${u.email}')">Banir</button>`}
+                            <button class="btn btn-outline btn-sm" style="font-size:10px;padding:4px 8px;margin-left:4px;" onclick="adminDelete('${u.email}')">🗑️</button>
+                        </td>
+                    </tr>`;
+                }).join('')}</tbody>
+            </table>
+        </div>
+    </div>`;
+}
+
+function filterAdminUsers(){
+    const q=($('adminSearch')||{}).value?.toLowerCase()||'';
+    document.querySelectorAll('.admin-user-row').forEach(row=>{
+        const email=(row.dataset.email||'').toLowerCase();const name=(row.dataset.name||'').toLowerCase();
+        row.style.display=(!q||email.includes(q)||name.includes(q))?'':'none';
+    });
+}
+
+async function adminEdit(targetEmail,field,value){
+    if(!state.admin)return;
+    const updates={};updates[field]=value;
+    const res=await api('/api/admin/edit',{targetEmail,adminEmail:state.admin.email,updates});
+    if(res.ok){showToast('Editado!','success');renderAdmin();}else{showToast(res.error||'Erro','error');}
+}
+
+async function adminBan(email){
+    if(!state.admin||!confirm(`Banir ${email}?`))return;
+    const res=await api('/api/admin/ban',{email,adminEmail:state.admin.email});
+    if(res.ok){showToast(`${email} banido!`,'success');renderAdmin();}else{showToast(res.error||'Erro','error');}
+}
+
+async function adminUnban(email){
+    if(!state.admin)return;
+    const res=await api('/api/admin/unban',{email,adminEmail:state.admin.email});
+    if(res.ok){showToast(`${email} desbanido!`,'success');renderAdmin();}else{showToast(res.error,'error');}
+}
+
+async function adminDelete(email){
+    if(!state.admin||!confirm(`DELETAR ${email}? Isso é permanente!`))return;
+    const res=await api('/api/admin/delete',{targetEmail:email,adminEmail:state.admin.email});
+    if(res.ok){showToast(`${email} deletado!`,'success');renderAdmin();}else{showToast(res.error,'error');}
+}
 
 // ===== PIX =====
 async function startDeposit(amount){
     if(!state.user){showModal('login');return;}
     if(!amount||amount<1){showToast('Mínimo R$ 1','error');return;}
     if(amount>500){showToast('Máximo R$ 500','error');return;}
-    window._depAmt=amount;
-    window._depPayload='Gerando...';
-    showModal('pix');
+    window._depAmt=amount;window._depPayload='Gerando...';showModal('pix');
     const res=await api('/api/pix/create',{amount,email:state.user.email});
     if(res.error){showToast('Erro: '+res.error,'error');return;}
-    window._depTxid=res.txid;
-    window._depPayload=res.payload;
+    window._depTxid=res.txid;window._depPayload=res.payload;
     const codeEl=$('pixCode');if(codeEl)codeEl.textContent=res.payload;
     const statusEl=$('pixStatus');if(statusEl)statusEl.style.display='block';
     pollPayment(res.txid);
 }
 function copyPix(){const code=$('pixCode');if(code){navigator.clipboard.writeText(code.textContent.trim()).then(()=>showToast('PIX copiado!','success')).catch(()=>{code.select();document.execCommand('copy');showToast('Copiado!','success');});}}
-
-async function pollPayment(txid){
-    let attempts=0;
-    const iv=setInterval(async()=>{
-        attempts++;if(attempts>60){clearInterval(iv);return;}
-        const res=await api('/api/pix/status?txid='+txid);
-        if(res.status==='paid'){
-            clearInterval(iv);
-            if(state.user){state.user.balance+=window._depAmt;state.user.deposit+=window._depAmt;state.user.transactions.unshift({t:'deposit',a:window._depAmt,d:`Depósito PIX R$ ${window._depAmt},00`,dt:fmt(),id:txid});save();updateUI();}
-            closeModal();showToast(`R$ ${window._depAmt},00 creditado!`,'success');
-        }
-    },5000);
-}
-
-async function confirmDeposit(){
-    if(!state.user||!window._depAmt||!window._depTxid)return;
-    const res=await api('/api/pix/confirm',{txid:window._depTxid,email:state.user.email});
-    if(res.status==='paid'||res.status==='already_paid'||res.balance){
-        if(res.balance)state.user.balance=res.balance;
-        else{state.user.balance+=window._depAmt;state.user.deposit+=window._depAmt;}
-        state.user.transactions.unshift({t:'deposit',a:window._depAmt,d:`Depósito PIX R$ ${window._depAmt},00`,dt:fmt(),id:window._depTxid});
-        save();updateUI();closeModal();showToast(`R$ ${window._depAmt},00 creditado!`,'success');
-    }else{showToast('Pagamento não confirmado ainda. Aguarde.','info');}
-}
+async function pollPayment(txid){let a=0;const iv=setInterval(async()=>{a++;if(a>60){clearInterval(iv);return;}const res=await api('/api/pix/status?txid='+txid);if(res.status==='paid'){clearInterval(iv);if(state.user){state.user.balance+=window._depAmt;state.user.deposit+=window._depAmt;state.user.transactions.unshift({t:'deposit',a:window._depAmt,d:`Depósito PIX R$ ${window._depAmt},00`,dt:fmt(),id:txid});save();updateUI();}closeModal();showToast(`R$ ${window._depAmt},00 creditado!`,'success');}},5000);}
+async function confirmDeposit(){if(!state.user||!window._depAmt||!window._depTxid)return;const res=await api('/api/pix/confirm',{txid:window._depTxid,email:state.user.email});if(res.status==='paid'||res.status==='already_paid'||res.balance){if(res.balance)state.user.balance=res.balance;else{state.user.balance+=window._depAmt;state.user.deposit+=window._depAmt;}state.user.transactions.unshift({t:'deposit',a:window._depAmt,d:`Depósito PIX R$ ${window._depAmt},00`,dt:fmt(),id:window._depTxid});save();updateUI();closeModal();showToast(`R$ ${window._depAmt},00 creditado!`,'success');}else{showToast('Aguardando pagamento...','info');}}
 
 // ===== AUTH =====
 function doLogin(){
     const email=($('loginEmail')||{}).value||'';const pass=($('loginPass')||{}).value||'';
-    if(!email.trim()||!pass){showToast('Preencha todos os campos','error');return;}
+    if(!email.trim()||!pass){showToast('Preencha tudo','error');return;}
+    if(email.trim()==='admin@gamevault.com'&&pass==='admin123'){showModal('adminLogin');$('adminEmail').value=email;$('adminPass').value=pass;return;}
     const saved=localStorage.getItem('gv_users');const users=saved?JSON.parse(saved):[];
     const found=users.find(u=>u.email===email.trim());
     state.user=found||defUser(email.trim(),email.trim().split('@')[0]);
@@ -160,7 +216,7 @@ function doRegister(){
     const name=($('regName')||{}).value||'';const email=($('regEmail')||{}).value||'';const pass=($('regPass')||{}).value||'';const age=($('regAge')||{}).checked;
     if(!name.trim()||!email.trim()||!pass){showToast('Preencha tudo','error');return;}
     if(!age){showToast('18+ obrigatório','error');return;}
-    if(pass.length<6){showToast('Min 6 caracteres','error');return;}
+    if(pass.length<6){showToast('Min 6','error');return;}
     state.user=defUser(email.trim(),name.trim());
     const saved=localStorage.getItem('gv_users');const users=saved?JSON.parse(saved):[];
     localStorage.setItem('gv_users',JSON.stringify([...users,state.user]));
@@ -177,61 +233,36 @@ function showToast(msg,type='info'){let c=document.querySelector('.toast-contain
 
 // ===== WALLET =====
 function renderWallet(){
-    if(!state.user)return;
-    const b=$('walletBalance');if(b)b.textContent=state.user.balance.toFixed(2).replace('.',',');
-    const tl=$('transactionList');
-    if(tl){
-        tl.innerHTML=state.user.transactions.length===0?'<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma transação</p>':
-        state.user.transactions.slice(0,15).map(t=>{const isPos=t.a>0;const color=t.t==='deposit'||t.t==='win'||t.t==='bonus'?'var(--accent-green)':'var(--accent-red)';const icon=t.t==='deposit'||t.t==='bonus'?'arrow-down':t.t==='win'?'trophy':'arrow-up';const bg=isPos?'rgba(16,185,129,0.15)':'rgba(239,68,68,0.15)';return `<div class="history-item"><div class="left"><div class="icon" style="background:${bg}"><i class="fas fa-${icon}" style="color:${color}"></i></div><div><div class="name">${t.d}</div><div class="date">${t.dt}</div></div></div><span class="amount ${isPos?'amount-pos':'amount-neg'}">${isPos?'+':''} R$ ${Math.abs(t.a).toFixed(2).replace('.',',')}</span></div>`;}).join('');
-    }
+    if(!state.user)return;const b=$('walletBalance');if(b)b.textContent=state.user.balance.toFixed(2).replace('.',',');
+    const tl=$('transactionList');if(tl){tl.innerHTML=state.user.transactions.length===0?'<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma transação</p>':state.user.transactions.slice(0,15).map(t=>{const p=t.a>0;const c=t.t==='deposit'||t.t==='win'||t.t==='bonus'?'var(--accent-green)':'var(--accent-red)';const i=t.t==='deposit'||t.t==='bonus'?'arrow-down':t.t==='win'?'trophy':'arrow-up';const bg=p?'rgba(16,185,129,0.15)':'rgba(239,68,68,0.15)';return `<div class="history-item"><div class="left"><div class="icon" style="background:${bg}"><i class="fas fa-${i}" style="color:${c}"></i></div><div><div class="name">${t.d}</div><div class="date">${t.dt}</div></div></div><span class="amount ${p?'amount-pos':'amount-neg'}">${p?'+':''} R$ ${Math.abs(t.a).toFixed(2).replace('.',',')}</span></div>`;}).join('');}
 }
 
 // ===== TOURNAMENTS =====
 function renderTournaments(){const el=$('tournamentsList');if(!el)return;el.innerHTML=TOURNAMENTS.map(t=>`<div class="tournament-card"><div class="tournament-info"><h3>${t.name}</h3><div class="tournament-meta"><span><i class="fas fa-gamepad"></i> ${t.game}</span><span><i class="fas fa-users"></i> ${t.players}</span><span><i class="fas fa-clock"></i> ${t.time}</span><span><i class="fas fa-tag"></i> R$ ${t.entry},00</span></div></div><div class="tournament-prize"><div class="amount">R$ ${t.prize},00</div><button class="btn ${t.status==='Aberto'?'btn-primary':'btn-outline'} btn-sm" style="margin-top:8px;" ${t.status!=='Aberto'?'disabled':''} onclick="joinTournament(${t.id})">${t.status==='Aberto'?'Participar':'Em Breve'}</button></div></div>`).join('');}
-function joinTournament(id){if(!state.user){showModal('login');return;}const t=TOURNAMENTS.find(x=>x.id===id);if(t&&state.user.balance>=t.entry){state.user.balance-=t.entry;state.user.transactions.unshift({t:'entry',a:-t.entry,d:`Entry: ${t.name}`,dt:fmt()});save();updateUI();showToast(`Inscrito no ${t.name}!`,'success');}else showToast('Saldo insuficiente','error');}
+function joinTournament(id){if(!state.user){showModal('login');return;}const t=TOURNAMENTS.find(x=>x.id===id);if(t&&state.user.balance>=t.entry){state.user.balance-=t.entry;state.user.transactions.unshift({t:'entry',a:-t.entry,d:`Entry: ${t.name}`,dt:fmt()});save();updateUI();showToast(`Inscrito!`,'success');}else showToast('Saldo insuficiente','error');}
 
-// ===== RESPONSIBLE GAMING =====
-function renderResponsible(){const el=document.querySelector('#page-responsible .container');if(!el)return;el.innerHTML=`<div class="section-header"><h2><i class="fas fa-shield-halved"></i> Jogo Responsável</h2></div><div class="rg-section"><h2><i class="fas fa-18-up" style="color:var(--accent-red);"></i> 18+</h2><p>Somente maiores de 18 anos.</p></div><div class="rg-section"><h2><i class="fas fa-balance-scale" style="color:var(--accent-gold);"></i> Lei 14.790/2023</h2><p>Em conformidade com a legislação brasileira.</p></div><div class="rg-section"><h2><i class="fas fa-ban" style="color:var(--accent-red);"></i> Autoexclusão</h2><div class="exclusion-options"><button class="exclusion-btn" onclick="activateExclusion(1)"><span class="period">24h</span><span class="desc">24 horas</span></button><button class="exclusion-btn" onclick="activateExclusion(7)"><span class="period">7 dias</span><span class="desc">Uma semana</span></button><button class="exclusion-btn" onclick="activateExclusion(30)"><span class="period">30 dias</span><span class="desc">Um mês</span></button></div></div><div class="rg-section"><h2><i class="fas fa-phone" style="color:var(--accent-green);"></i> Ajuda</h2><ul class="rg-list"><li><i class="fas fa-phone"></i> CVV: 188</li><li><i class="fas fa-phone"></i> SAMU: 192</li></ul></div>`;}
+// ===== RESPONSIBLE =====
+function renderResponsible(){const el=document.querySelector('#page-responsible .container');if(!el)return;el.innerHTML=`<div class="section-header"><h2><i class="fas fa-shield-halved"></i> Jogo Responsável</h2></div><div class="rg-section"><h2>18+ Apenas</h2><p>Somente maiores de 18 anos.</p></div><div class="rg-section"><h2>Lei 14.790/2023</h2><p>Em conformidade com a legislação brasileira.</p></div><div class="rg-section"><h2>Autoexclusão</h2><div class="exclusion-options"><button class="exclusion-btn" onclick="activateExclusion(1)"><span class="period">24h</span><span class="desc">24 horas</span></button><button class="exclusion-btn" onclick="activateExclusion(7)"><span class="period">7 dias</span><span class="desc">Uma semana</span></button><button class="exclusion-btn" onclick="activateExclusion(30)"><span class="period">30 dias</span><span class="desc">Um mês</span></button></div></div><div class="rg-section"><h2>Ajuda</h2><ul class="rg-list"><li>CVV: 188</li><li>SAMU: 192</li></ul></div>`;}
 function activateExclusion(days){if(!state.user)return;if(!confirm(`Autoexclusão ${days} dias?`))return;state.user.selfExclusion={days,start:Date.now(),end:Date.now()+days*86400000};save();showToast(`Autoexclusão ${days} dias.`,'info');}
 
 // ===== DASHBOARD =====
-function renderDashboard(){if(!state.user)return;const el=$('dashboardContent');if(!el)return;el.innerHTML=`<div class="dash-stats"><div class="dash-stat"><div class="label">Saldo</div><div class="value" style="color:var(--accent-gold);">R$ ${state.user.balance.toFixed(2).replace('.',',')}</div></div><div class="dash-stat"><div class="label">Jogos</div><div class="value">${state.user.played}</div></div><div class="dash-stat"><div class="label">Ganho</div><div class="value" style="color:var(--accent-green);">R$ ${state.user.won.toFixed(2).replace('.',',')}</div></div><div class="dash-stat"><div class="label">Depositado</div><div class="value">R$ ${state.user.deposit.toFixed(2).replace('.',',')}</div></div></div><div class="wallet-card"><h3><i class="fas fa-id-card"></i> KYC</h3><div class="kyc-status kyc-${state.user.kyc}"><i class="fas fa-${state.user.kyc==='approved'?'check-circle':'clock'}"></i><div><strong>${state.user.kyc==='approved'?'Verificado':'Pendente'}</strong><p style="font-size:13px;color:var(--text-secondary);">${state.user.kyc==='approved'?'Verificado.':'Complete para sacar.'}</p></div></div></div>`;}
+function renderDashboard(){if(!state.user)return;const el=$('dashboardContent');if(!el)return;el.innerHTML=`<div class="dash-stats"><div class="dash-stat"><div class="label">Saldo</div><div class="value" style="color:var(--accent-gold);">R$ ${state.user.balance.toFixed(2).replace('.',',')}</div></div><div class="dash-stat"><div class="label">Jogos</div><div class="value">${state.user.played}</div></div><div class="dash-stat"><div class="label">Ganho</div><div class="value" style="color:var(--accent-green);">R$ ${state.user.won.toFixed(2).replace('.',',')}</div></div><div class="dash-stat"><div class="label">Depositado</div><div class="value">R$ ${state.user.deposit.toFixed(2).replace('.',',')}</div></div></div>`;}
 
 // ===== HISTORY =====
 function renderHistory(){if(!state.user)return;const el=$('historyList');if(!el)return;el.innerHTML=state.user.history.length===0?'<p style="color:var(--text-secondary);text-align:center;padding:40px;">Nenhum jogo</p>':state.user.history.map(h=>`<div class="history-item"><div class="left"><div class="icon" style="background:${h.result==='Ganhou'?'rgba(16,185,129,0.15)':'rgba(239,68,68,0.15)'}"><i class="fas fa-${h.result==='Ganhou'?'trophy':'times'}" style="color:${h.result==='Ganhou'?'var(--accent-green)':'var(--accent-red)'}"></i></div><div><div class="name">${h.game}</div><div class="date">${h.date}</div></div></div><span class="amount ${h.amount>0?'amount-pos':'amount-neg'}">${h.amount>0?`+R$ ${h.amount.toFixed(2).replace('.',',')}`:h.result}</span></div>`).join('');}
 
 // ===== LIMITS =====
-function renderLimits(){if(!state.user)return;const el=$('limitsForm');if(!el)return;el.innerHTML=`<div class="wallet-card"><div class="input-group"><label>Limite Diário (R$)</label><input type="number" id="limitDaily" value="${state.user.limits.daily}"></div><div class="input-group"><label>Limite Semanal (R$)</label><input type="number" id="limitWeekly" value="${state.user.limits.weekly}"></div><div class="input-group"><label>Limite Mensal (R$)</label><input type="number" id="limitMonthly" value="${state.user.limits.monthly}"></div><button class="btn btn-primary" onclick="saveLimits()"><i class="fas fa-save"></i> Salvar</button></div>`;}
+function renderLimits(){if(!state.user)return;const el=$('limitsForm');if(!el)return;el.innerHTML=`<div class="wallet-card"><div class="input-group"><label>Diário (R$)</label><input type="number" id="limitDaily" value="${state.user.limits.daily}"></div><div class="input-group"><label>Semanal (R$)</label><input type="number" id="limitWeekly" value="${state.user.limits.weekly}"></div><div class="input-group"><label>Mensal (R$)</label><input type="number" id="limitMonthly" value="${state.user.limits.monthly}"></div><button class="btn btn-primary" onclick="saveLimits()"><i class="fas fa-save"></i> Salvar</button></div>`;}
 function saveLimits(){state.user.limits.daily=Number(($('limitDaily')||{}).value)||500;state.user.limits.weekly=Number(($('limitWeekly')||{}).value)||2000;state.user.limits.monthly=Number(($('limitMonthly')||{}).value)||5000;save();showToast('Limites salvos!','success');}
 
-// ===== ADMIN =====
-async function renderAdmin(){
-    const el=$('adminContent');if(!el)return;
-    const res=await api('/api/admin/users');
-    const users=res.users||[];
-    const totalDep=users.reduce((s,u)=>s+u.deposit,0);
-    const totalWit=users.reduce((s,u)=>s+u.withdrawn,0);
-    el.innerHTML=`<div class="dash-stats"><div class="dash-stat"><div class="label">Usuários</div><div class="value">${users.length}</div></div><div class="dash-stat"><div class="label">Depositado</div><div class="value" style="color:var(--accent-green);">R$ ${totalDep.toFixed(2).replace('.',',')}</div></div><div class="dash-stat"><div class="label">Sacado</div><div class="value" style="color:var(--accent-red);">R$ ${totalWit.toFixed(2).replace('.',',')}</div></div><div class="dash-stat"><div class="label">Lucro</div><div class="value" style="color:var(--accent-gold);">R$ ${(totalDep-totalWit).toFixed(2).replace('.',',')}</div></div></div><div class="wallet-card"><h3><i class="fas fa-users"></i> Usuários</h3><div class="table-wrap"><table><thead><tr><th>Nome</th><th>Email</th><th>Saldo</th><th>Depositado</th><th>Sacado</th></tr></thead><tbody>${users.map(u=>`<tr><td>${u.name||'-'}</td><td style="font-size:12px;">${u.email}</td><td>R$ ${(u.balance||0).toFixed(2).replace('.',',')}</td><td style="color:var(--accent-green);">R$ ${(u.deposit||0).toFixed(2).replace('.',',')}</td><td style="color:var(--accent-red);">R$ ${(u.withdrawn||0).toFixed(2).replace('.',',')}</td></tr>`).join('')}</tbody></table></div></div>`;
-}
-
 // ===== GAME PLAY =====
-function playGame(id){
-    if(!state.user){showModal('login');return;}
-    if(state.user.selfExclusion){showToast('Autoexclusão ativa.','error');return;}
-    const game=GAMES.find(g=>g.id===id);if(!game)return;
-    if(state.user.balance<game.entry){showToast('Saldo insuficiente. Depósita!','error');return;}
-    state.currentGame=game;showPage('play');
-    const area=$('gamePlayArea');if(!area)return;
-    if(game.category==='trivia')startQuiz(area);
-    else if(game.category==='skill')startSkill(area);
-    else startArcade(area);
-}
+function playGame(id){if(!state.user){showModal('login');return;}if(state.user.selfExclusion){showToast('Autoexclusão ativa.','error');return;}const game=GAMES.find(g=>g.id===id);if(!game)return;if(state.user.balance<game.entry){showToast('Saldo insuficiente!','error');return;}state.currentGame=game;showPage('play');const area=$('gamePlayArea');if(!area)return;if(game.category==='trivia')startQuiz(area);else if(game.category==='skill')startSkill(area);else startArcade(area);}
 function startQuiz(area){state.quiz={i:0,s:0,q:shuffle([...QUIZ_Q]).slice(0,5)};renderQuizQ(area);}
 function renderQuizQ(area){const{i,s,q}=state.quiz;if(i>=q.length){finishQuiz(area);return;}const qe=q[i];area.innerHTML=`<div class="game-play-area"><h2>${state.currentGame.icon} ${state.currentGame.name}</h2><div class="prize-display">R$ ${state.currentGame.prize},00</div><p style="color:var(--text-secondary);margin-bottom:8px;">${i+1}/${q.length} • Acertos: ${s}</p><p style="font-size:18px;font-weight:600;margin-bottom:24px;">${qe.q}</p>${qe.opts.map((o,j)=>`<button class="quiz-option" onclick="answerQuiz(${j},${qe.c})">${o}</button>`).join('')}</div>`;}
 function answerQuiz(chosen,correct){const opts=document.querySelectorAll('.quiz-option');opts.forEach((o,i)=>{o.disabled=true;if(i===correct)o.classList.add('correct');if(i===chosen&&chosen!==correct)o.classList.add('wrong');});if(chosen===correct)state.quiz.s++;setTimeout(()=>{state.quiz.i++;const a=$('gamePlayArea');if(a)renderQuizQ(a);},1200);}
 function finishQuiz(area){const{s,q}=state.quiz;const pct=s/q.length;let prize=0;if(pct>=0.8)prize=state.currentGame.prize;else if(pct>=0.6)prize=Math.floor(state.currentGame.prize*0.5);else if(pct>=0.4)prize=Math.floor(state.currentGame.prize*0.2);if(prize>0){state.user.balance+=prize;state.user.won+=prize;state.user.transactions.unshift({t:'win',a:prize,d:`${state.currentGame.name}`,dt:fmt()});}state.user.balance-=state.currentGame.entry;state.user.played++;state.user.history.unshift({game:state.currentGame.name,result:prize>0?'Ganhou':'Perdeu',amount:prize,date:fmt()});save();updateUI();area.innerHTML=`<div class="game-play-area"><h2>${prize>0?'🎉 Parabéns!':'😔 Tente Novamente'}</h2><p style="font-size:18px;margin:16px 0;">Acertou ${s}/${q.length}</p><div class="prize-display">${prize>0?`+ R$ ${prize},00`:'R$ 0,00'}</div><div style="margin-top:32px;display:flex;gap:12px;justify-content:center;"><button class="btn btn-primary" onclick="playGame(${state.currentGame.id})"><i class="fas fa-redo"></i> Jogar</button><button class="btn btn-outline" onclick="showPage('games')"><i class="fas fa-arrow-left"></i> Voltar</button></div></div>`;}
-function startSkill(area){const emojis=['✊','✋','✌️'];area.innerHTML=`<div class="game-play-area"><h2>${state.currentGame.icon} ${state.currentGame.name}</h2><div class="prize-display">R$ ${state.currentGame.prize},00</div><p style="color:var(--text-secondary);margin-bottom:24px;">Escolha:</p>${emojis.map((e,i)=>`<button class="quiz-option" style="text-align:center;font-size:48px;max-width:160px;display:inline-block;margin:8px;" onclick="playSkill(${i})">${e}</button>`).join('')}</div>`;}
-function playSkill(pc){const cc=Math.floor(Math.random()*3);const w=[[-1,1,0],[0,-1,1],[1,0,-1]];const r=w[pc][cc];let prize=0;if(r>0)prize=state.currentGame.prize;else if(r===0)prize=state.currentGame.entry;if(r>0){state.user.balance+=prize;state.user.won+=prize;state.user.transactions.unshift({t:'win',a:prize,d:`${state.currentGame.name}`,dt:fmt()});}state.user.balance-=state.currentGame.entry;state.user.played++;state.user.history.unshift({game:state.currentGame.name,result:r>0?'Ganhou':r===0?'Empate':'Perdeu',amount:prize,date:fmt()});save();updateUI();const emojis=['✊','✋','✌️'];const area=$('gamePlayArea');area.innerHTML=`<div class="game-play-area"><h2>${r>0?'🎉 Ganhou!':r===0?'🤝 Empate!':'😔 Perdeu!'}</h2><p style="font-size:24px;margin:20px 0;">Você: ${emojis[pc]} vs ${emojis[cc]} :CPU</p><div class="prize-display">${prize>0?`+ R$ ${prize},00`:'R$ 0,00'}</div><div style="margin-top:32px;display:flex;gap:12px;justify-content:center;"><button class="btn btn-primary" onclick="playGame(${state.currentGame.id})"><i class="fas fa-redo"></i> Jogar</button><button class="btn btn-outline" onclick="showPage('games')"><i class="fas fa-arrow-left"></i> Voltar</button></div></div>`;}
+function startSkill(area){area.innerHTML=`<div class="game-play-area"><h2>${state.currentGame.icon} ${state.currentGame.name}</h2><div class="prize-display">R$ ${state.currentGame.prize},00</div><p style="color:var(--text-secondary);margin-bottom:24px;">Escolha:</p>${['✊','✋','✌️'].map((e,i)=>`<button class="quiz-option" style="text-align:center;font-size:48px;max-width:160px;display:inline-block;margin:8px;" onclick="playSkill(${i})">${e}</button>`).join('')}</div>`;}
+function playSkill(pc){const cc=Math.floor(Math.random()*3);const w=[[-1,1,0],[0,-1,1],[1,0,-1]];const r=w[pc][cc];let prize=0;if(r>0)prize=state.currentGame.prize;else if(r===0)prize=state.currentGame.entry;if(r>0){state.user.balance+=prize;state.user.won+=prize;state.user.transactions.unshift({t:'win',a:prize,d:`${state.currentGame.name}`,dt:fmt()});}state.user.balance-=state.currentGame.entry;state.user.played++;state.user.history.unshift({game:state.currentGame.name,result:r>0?'Ganhou':r===0?'Empate':'Perdeu',amount:prize,date:fmt()});save();updateUI();const area=$('gamePlayArea');area.innerHTML=`<div class="game-play-area"><h2>${r>0?'🎉 Ganhou!':r===0?'🤝 Empate!':'😔 Perdeu!'}</h2><p style="font-size:24px;margin:20px 0;">${['✊','✋','✌️'][pc]} vs ${['✊','✋','✌️'][cc]}</p><div class="prize-display">${prize>0?`+ R$ ${prize},00`:'R$ 0,00'}</div><div style="margin-top:32px;display:flex;gap:12px;justify-content:center;"><button class="btn btn-primary" onclick="playGame(${state.currentGame.id})"><i class="fas fa-redo"></i> Jogar</button><button class="btn btn-outline" onclick="showPage('games')"><i class="fas fa-arrow-left"></i> Voltar</button></div></div>`;}
 function startArcade(area){window._ac=0;const t0=Date.now();area.innerHTML=`<div class="game-play-area"><h2>${state.currentGame.icon} ${state.currentGame.name}</h2><div class="prize-display">R$ ${state.currentGame.prize},00</div><p style="color:var(--text-secondary);margin-bottom:24px;">Clique rápido em 10s!</p><div id="arcT" style="font-size:48px;font-weight:800;color:var(--accent-cyan);margin:20px 0;">10</div><button class="btn btn-primary" style="font-size:24px;padding:30px 60px;border-radius:16px;" onclick="window._ac++;const c=$('arcC');if(c)c.textContent=window._ac+' cliques'">🎯 CLICAR!</button><div id="arcC" style="font-size:32px;font-weight:800;margin-top:16px;">0 cliques</div></div>`;const iv=setInterval(()=>{const rem=Math.max(0,10-Math.floor((Date.now()-t0)/1000));const te=$('arcT');if(te)te.textContent=rem;if(rem<=0){clearInterval(iv);finishArc(area);}},100);}
 function finishArc(area){const total=window._ac||0;let prize=0;if(total>=80)prize=state.currentGame.prize;else if(total>=50)prize=Math.floor(state.currentGame.prize*0.5);else if(total>=30)prize=Math.floor(state.currentGame.prize*0.2);if(prize>0){state.user.balance+=prize;state.user.won+=prize;state.user.transactions.unshift({t:'win',a:prize,d:`${state.currentGame.name}`,dt:fmt()});}state.user.balance-=state.currentGame.entry;state.user.played++;state.user.history.unshift({game:state.currentGame.name,result:prize>0?'Ganhou':'Perdeu',amount:prize,date:fmt()});save();updateUI();area.innerHTML=`<div class="game-play-area"><h2>${prize>0?'🎉 Incrível!':'😔 Quase!'}</h2><p style="font-size:18px;margin:16px 0;">${total} cliques em 10s</p><div class="prize-display">${prize>0?`+ R$ ${prize},00`:'R$ 0,00'}</div><div style="margin-top:32px;display:flex;gap:12px;justify-content:center;"><button class="btn btn-primary" onclick="playGame(${state.currentGame.id})"><i class="fas fa-redo"></i> Jogar</button><button class="btn btn-outline" onclick="showPage('games')"><i class="fas fa-arrow-left"></i> Voltar</button></div></div>`;}
 
@@ -241,10 +272,10 @@ function checkReality(){if(!state.user)return;if((Date.now()-state.sessionStart)
 // ===== INIT =====
 window.addEventListener('load',()=>{
     const saved=localStorage.getItem('gv_user');if(saved){state.user=JSON.parse(saved);updateUI();}
+    const adminSaved=localStorage.getItem('gv_admin');if(adminSaved)state.admin=JSON.parse(adminSaved);
     setInterval(checkReality,60000);renderHome();
     document.querySelectorAll('.stat-num').forEach(el=>{const target=parseInt(el.dataset.target);let c=0;const s=target/60;const t=setInterval(()=>{c+=s;if(c>=target){c=target;clearInterval(t);}el.textContent=Math.floor(c).toLocaleString('pt-BR');},30);});
     setTimeout(()=>{const p=$('preloader');if(p)p.classList.add('hidden');},1500);
     state.sessionStart=Date.now();state.realityShown=false;
-    if(state.user&&state.user.email==='admin@gamevault.com')showPage('admin');
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
