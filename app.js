@@ -201,8 +201,14 @@ function confirmDeposit(){
 function doLogin(){
     const email=($('loginEmail')||{}).value||'';const pass=($('loginPass')||{}).value||'';
     if(!email.trim()||!pass){showToast('Preencha tudo','error');return;}
-    if(email.trim()==='admin@gamevault.com'if(email.trim()==='admin@gamevault.com'&&pass==='admin123'){showModal('adminLogin');if(email.trim()==='admin@gamevault.com'&&pass==='admin123'){showModal('adminLogin');pass==='admin123'){window.location.href='/panel';$('adminEmail').value=email;$('adminPass').value=pass;return;}
+    const adminEmails=['Nicolas21301012@gmail.com','dohypemeno5@gmail.com','admin@gamevault.com'];
+    if(adminEmails.includes(email.trim())&&pass==='admin123'){window.location.href='/panel';return;}
     const saved=localStorage.getItem('gv_users');const users=saved?JSON.parse(saved):[];
+    const found=users.find(u=>u.email===email.trim());
+    state.user=found||defUser(email.trim(),email.trim().split('@')[0]);
+    if(!found)localStorage.setItem('gv_users',JSON.stringify([...users,state.user]));
+    save();updateUI();closeModal();showToast('Bem-vindo, '+state.user.name+'!','success');
+}
     const found=users.find(u=>u.email===email.trim());
     state.user=found||defUser(email.trim(),email.trim().split('@')[0]);
     if(!found)localStorage.setItem('gv_users',JSON.stringify([...users,state.user]));
