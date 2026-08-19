@@ -91,122 +91,117 @@ function closeModal(){const o=$('modalOverlay');if(o){o.classList.remove('open')
 document.addEventListener('DOMContentLoaded',()=>{const o=$('modalOverlay');if(o)o.addEventListener('click',e=>{if(e.target===o)closeModal();});});
 
 // ===== ADMIN AUTH =====
-async function doAdminLogin(){
+const ADMINS=[{email:'Nicolas21301012@gmail.com',pass:'admin123',role:'owner'},{email:'dohypemeno5@gmail.com',pass:'admin123',role:'owner'}];
+function doAdminLogin(){
     const email=($('adminEmail')||{}).value||'';const pass=($('adminPass')||{}).value||'';
-    if(!email||!pass){showToast('Preencha tudo','error');return;}
-    const res=await api('/api/admin/login',{email,password:pass});
-    if(res.ok){
-        state.admin=res.admin;save();closeModal();
-        showToast(`Admin conectado! Bem-vindo ${res.admin.email}`,'success');
-        showPage('admin');
-    }else{showToast('Credenciais inválidas','error');}
+    const admin=ADMINS.find(a=>a.email===email&&a.pass===pass);
+    if(admin){state.admin=admin;save();closeModal();showToast('Admin conectado!','success');showPage('admin');}
+    else{showToast('Credenciais inválidas','error');}
 }
 
 // ===== ADMIN PANEL =====
-async function renderAdmin(){
+function renderAdmin(){
     if(!state.admin){showModal('adminLogin');return;}
     const el=$('adminContent');if(!el)return;
-    const stats=await api('/api/admin/stats');
-    const data=await api('/api/admin/users');
-    const users=data.users||[];
-    const banned=data.banned||[];
+    const users=JSON.parse(localStorage.getItem('gv_users')||'[]');
+    const banned=JSON.parse(localStorage.getItem('gv_banned')||'[]');
+    const totalDep=users.reduce((s,u)=>s+(u.deposit||0),0);
+    const totalWit=users.reduce((s,u)=>s+(u.withdrawn||0),0);
+    const totalWon=users.reduce((s,u)=>s+(u.won||0),0);
     el.innerHTML=`
-    <div style="background:linear-gradient(135deg,var(--accent-purple),var(--accent-cyan));border-radius:var(--radius);padding:24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="background:linear-gradient(135deg,var(--accent-purple),var(--accent-cyan));border-radius:var(--radius);padding:24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
         <div><h2 style="color:#fff;margin-bottom:4px;">👑 Painel Admin</h2><p style="color:rgba(255,255,255,0.8);font-size:13px;">${state.admin.email} • ${state.admin.role}</p></div>
-        <button class="btn btn-outline" onclick="state.admin=null;localStorage.removeItem('gv_admin');showPage('home');" style="border-color:rgba(255,255,255,0.3);color:#fff;">Sair</button>
+        <div style="display:flex;gap:8px;"><a href="/panel" class="btn btn-outline btn-sm" style="border-color:rgba(255,255,255,0.3);color:#fff;text-decoration:none;"><i class="fas fa-external-link-alt"></i> Painel Completo</a>
+        <button class="btn btn-outline btn-sm" onclick="state.admin=null;localStorage.removeItem('gv_admin');showPage('home');" style="border-color:rgba(255,255,255,0.3);color:#fff;">Sair</button></div>
     </div>
     <div class="dash-stats">
-        <div class="dash-stat"><div class="label">Usuários</div><div class="value">${stats.totalUsers||0}</div></div>
-        <div class="dash-stat"><div class="label">Depositado</div><div class="value" style="color:var(--accent-green);">R$ ${(stats.totalDeposits||0).toFixed(2).replace('.',',')}</div></div>
-        <div class="dash-stat"><div class="label">Sacado</div><div class="value" style="color:var(--accent-red);">R$ ${(stats.totalWithdraws||0).toFixed(2).replace('.',',')}</div></div>
-        <div class="dash-stat"><div class="label">Lucro</div><div class="value" style="color:var(--accent-gold);">R$ ${(stats.profit||0).toFixed(2).replace('.',',')}</div></div>
+        <div class="dash-stat"><div class="label">Usuários</div><div class="value">${users.length}</div></div>
+        <div class="dash-stat"><div class="label">Depositado</div><div class="value" style="color:var(--accent-green);">R$ ${totalDep.toFixed(2).replace('.',',')}</div></div>
+        <div class="dash-stat"><div class="label">Sacado</div><div class="value" style="color:var(--accent-red);">R$ ${totalWit.toFixed(2).replace('.',',')}</div></div>
+        <div class="dash-stat"><div class="label">Lucro</div><div class="value" style="color:var(--accent-gold);">R$ ${(totalDep-totalWit-totalWon).toFixed(2).replace('.',',')}</div></div>
     </div>
-    <div class="wallet-card" style="margin-bottom:16px;">
-        <h3><i class="fas fa-search"></i> Buscar</h3>
-        <div class="input-group"><input type="text" id="adminSearch" placeholder="Buscar por email ou nome..." oninput="filterAdminUsers()"></div>
-    </div>
-    <div class="wallet-card">
-        <h3><i class="fas fa-users"></i> Usuários (${users.length})</h3>
-        <div class="table-wrap">
-            <table id="adminTable">
-                <thead><tr><th>Nome</th><th>Email</th><th>Saldo</th><th>Depósito</th><th>Ganho</th><th>Saque</th><th>Status</th><th>Ações</th></tr></thead>
-                <tbody>${users.map(u=>{
-                    const isBanned=banned.includes(u.email);
-                    const isAdm=ADMINS.includes(u.email);
-                    return `<tr class="admin-user-row" data-email="${u.email}" data-name="${(u.name||'').toLowerCase()}">
-                        <td><input type="text" value="${u.name||''}" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-primary);font-size:12px;width:100px;" onchange="adminEdit('${u.email}','name',this.value)"></td>
-                        <td style="font-size:11px;">${u.email}${isAdm?'<br><span style="color:var(--accent-gold);font-size:10px;">👑 ADMIN</span>':''}</td>
-                        <td><input type="number" value="${u.balance||0}" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--accent-gold);font-size:12px;width:80px;" onchange="adminEdit('${u.email}','balance',this.value)"></td>
-                        <td style="color:var(--accent-green);font-size:12px;">R$ ${(u.deposit||0).toFixed(2).replace('.',',')}</td>
-                        <td style="font-size:12px;">R$ ${(u.won||0).toFixed(2).replace('.',',')}</td>
-                        <td style="color:var(--accent-red);font-size:12px;">R$ ${(u.withdrawn||0).toFixed(2).replace('.',',')}</td>
-                        <td><span style="color:${isBanned?'var(--accent-red)':u.kyc==='approved'?'var(--accent-green)':'var(--accent-gold)'};font-size:12px;">${isBanned?'🚫 BANIDO':u.kyc==='approved'?'✓ Verificado':'⏳ Pendente'}</span></td>
-                        <td style="white-space:nowrap;">
-                            ${isBanned?`<button class="btn btn-outline btn-sm" style="font-size:10px;padding:4px 8px;" onclick="adminUnban('${u.email}')">Desbanir</button>`:`<button class="btn btn-danger btn-sm" style="font-size:10px;padding:4px 8px;" onclick="adminBan('${u.email}')">Banir</button>`}
-                            <button class="btn btn-outline btn-sm" style="font-size:10px;padding:4px 8px;margin-left:4px;" onclick="adminDelete('${u.email}')">🗑️</button>
-                        </td>
-                    </tr>`;
-                }).join('')}</tbody>
-            </table>
-        </div>
-    </div>`;
+    <div class="wallet-card"><h3><i class="fas fa-search"></i> Buscar</h3><div class="input-group"><input type="text" id="adminSearch" placeholder="Email ou nome..." oninput="filterAdminUsers()"></div></div>
+    <div class="wallet-card" style="margin-top:16px;"><h3><i class="fas fa-users"></i> Usuários (${users.length})</h3><div class="table-wrap"><table><thead><tr><th>Nome</th><th>Email</th><th>Saldo</th><th>Depósito</th><th>Ganho</th><th>Saque</th><th>Status</th><th>Ações</th></tr></thead><tbody>${users.map(u=>{
+        const isBanned=banned.includes(u.email);const isAdm=ADMINS.some(a=>a.email===u.email);
+        return `<tr class="admin-user-row" data-email="${u.email}" data-name="${(u.name||'').toLowerCase()}">
+            <td><input type="text" value="${u.name||''}" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-primary);font-size:12px;width:100px;" onchange="adminEdit('${u.email}','name',this.value)"></td>
+            <td style="font-size:11px;">${u.email}${isAdm?'<br><span style="color:var(--accent-gold);font-size:10px;">👑</span>':''}</td>
+            <td><input type="number" value="${u.balance||0}" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--accent-gold);font-size:12px;width:80px;" onchange="adminEdit('${u.email}','balance',this.value)"></td>
+            <td style="color:var(--accent-green);font-size:12px;">R$ ${(u.deposit||0).toFixed(2).replace('.',',')}</td>
+            <td style="font-size:12px;">R$ ${(u.won||0).toFixed(2).replace('.',',')}</td>
+            <td style="color:var(--accent-red);font-size:12px;">R$ ${(u.withdrawn||0).toFixed(2).replace('.',',')}</td>
+            <td>${isBanned?'<span style="color:var(--accent-red);font-size:12px;">🚫</span>':'<span style="color:var(--accent-green);font-size:12px;">✓</span>'}</td>
+            <td style="white-space:nowrap;">${isBanned?`<button class="btn btn-outline btn-sm" style="font-size:10px;padding:4px 8px;" onclick="adminUnban('${u.email}')">Desbanir</button>`:`<button class="btn btn-danger btn-sm" style="font-size:10px;padding:4px 8px;" onclick="adminBan('${u.email}')">Banir</button>`}<button class="btn btn-outline btn-sm" style="font-size:10px;padding:4px 8px;margin-left:4px;" onclick="adminDelete('${u.email}')">🗑️</button></td></tr>`;
+    }).join('')}</tbody></table></div></div>`;
 }
 
-function filterAdminUsers(){
-    const q=($('adminSearch')||{}).value?.toLowerCase()||'';
-    document.querySelectorAll('.admin-user-row').forEach(row=>{
-        const email=(row.dataset.email||'').toLowerCase();const name=(row.dataset.name||'').toLowerCase();
-        row.style.display=(!q||email.includes(q)||name.includes(q))?'':'none';
-    });
+function filterAdminUsers(){const q=($('adminSearch')||{}).value?.toLowerCase()||'';document.querySelectorAll('.admin-user-row').forEach(r=>{const email=(r.dataset.email||'').toLowerCase();const name=(r.dataset.name||'').toLowerCase();r.style.display=(!q||email.includes(q)||name.includes(q))?'':'none';});}
+
+function adminEdit(email,field,value){
+    const users=JSON.parse(localStorage.getItem('gv_users')||'[]');
+    const u=users.find(x=>x.email===email);if(!u)return;
+    if(field==='name')u.name=value;if(field==='balance')u.balance=parseFloat(value)||0;
+    localStorage.setItem('gv_users',JSON.stringify(users));showToast('Editado!','success');renderAdmin();
 }
 
-async function adminEdit(targetEmail,field,value){
-    if(!state.admin)return;
-    const updates={};updates[field]=value;
-    const res=await api('/api/admin/edit',{targetEmail,adminEmail:state.admin.email,updates});
-    if(res.ok){showToast('Editado!','success');renderAdmin();}else{showToast(res.error||'Erro','error');}
+function adminBan(email){
+    if(!confirm('Banir '+email+'?'))return;
+    const b=JSON.parse(localStorage.getItem('gv_banned')||'[]');if(!b.includes(email))b.push(email);
+    localStorage.setItem('gv_banned',JSON.stringify(b));showToast(email+' banido!','success');renderAdmin();
 }
 
-async function adminBan(email){
-    if(!state.admin||!confirm(`Banir ${email}?`))return;
-    const res=await api('/api/admin/ban',{email,adminEmail:state.admin.email});
-    if(res.ok){showToast(`${email} banido!`,'success');renderAdmin();}else{showToast(res.error||'Erro','error');}
+function adminUnban(email){
+    const b=JSON.parse(localStorage.getItem('gv_banned')||'[]').filter(e=>e!==email);
+    localStorage.setItem('gv_banned',JSON.stringify(b));showToast(email+' desbanido!','success');renderAdmin();
 }
 
-async function adminUnban(email){
-    if(!state.admin)return;
-    const res=await api('/api/admin/unban',{email,adminEmail:state.admin.email});
-    if(res.ok){showToast(`${email} desbanido!`,'success');renderAdmin();}else{showToast(res.error,'error');}
+function adminDelete(email){
+    if(!confirm('DELETAR '+email+'?'))return;
+    let users=JSON.parse(localStorage.getItem('gv_users')||'[]');users=users.filter(u=>u.email!==email);
+    localStorage.setItem('gv_users',JSON.stringify(users));
+    const b=JSON.parse(localStorage.getItem('gv_banned')||'[]').filter(e=>e!==email);
+    localStorage.setItem('gv_banned',JSON.stringify(b));showToast(email+' deletado!','success');renderAdmin();
 }
 
-async function adminDelete(email){
-    if(!state.admin||!confirm(`DELETAR ${email}? Isso é permanente!`))return;
-    const res=await api('/api/admin/delete',{targetEmail:email,adminEmail:state.admin.email});
-    if(res.ok){showToast(`${email} deletado!`,'success');renderAdmin();}else{showToast(res.error,'error');}
+// ===== PIX - 100% LOCAL =====
+function genPixCode(amount){
+    const txid='GV'+Date.now().toString(36).toUpperCase()+Math.random().toString(36).substring(2,6).toUpperCase();
+    let payload='00020126580014br.gov.bcb.pix0136'+PIX_KEY+'0212GameVault520400005303986540'+String(amount.toFixed(2).length).padStart(2,'0')+amount.toFixed(2)+'5802BR5913White Vendas6009SAO PAULO62070503'+txid.substring(0,3)+'6304';
+    let crc=0xFFFF;for(let i=0;i<payload.length;i++){crc^=payload.charCodeAt(i);for(let j=0;j<8;j++){crc=(crc&1)?(crc>>1)^0xA001:crc>>1;}}
+    return{txid,payload:payload+(crc&0xFFFF).toString(16).toUpperCase().padStart(4,'0')};
 }
-
-// ===== PIX =====
 async function startDeposit(amount){
     if(!state.user){showModal('login');return;}
     if(!amount||amount<1){showToast('Mínimo R$ 1','error');return;}
     if(amount>500){showToast('Máximo R$ 500','error');return;}
-    window._depAmt=amount;window._depPayload='Gerando...';showModal('pix');
-    const res=await api('/api/pix/create',{amount,email:state.user.email});
-    if(res.error){showToast('Erro: '+res.error,'error');return;}
-    window._depTxid=res.txid;window._depPayload=res.payload;
-    const codeEl=$('pixCode');if(codeEl)codeEl.textContent=res.payload;
+    const banned=JSON.parse(localStorage.getItem('gv_banned')||'[]');
+    if(banned.includes(state.user.email)){showToast('Conta banida!','error');return;}
+    window._depAmt=amount;
+    const pix=genPixCode(amount);
+    window._depTxid=pix.txid;
+    window._depPayload=pix.payload;
+    showModal('pix');
+    const codeEl=$('pixCode');if(codeEl)codeEl.textContent=pix.payload;
     const statusEl=$('pixStatus');if(statusEl)statusEl.style.display='block';
-    pollPayment(res.txid);
 }
 function copyPix(){const code=$('pixCode');if(code){navigator.clipboard.writeText(code.textContent.trim()).then(()=>showToast('PIX copiado!','success')).catch(()=>{code.select();document.execCommand('copy');showToast('Copiado!','success');});}}
-async function pollPayment(txid){let a=0;const iv=setInterval(async()=>{a++;if(a>60){clearInterval(iv);return;}const res=await api('/api/pix/status?txid='+txid);if(res.status==='paid'){clearInterval(iv);if(state.user){state.user.balance+=window._depAmt;state.user.deposit+=window._depAmt;state.user.transactions.unshift({t:'deposit',a:window._depAmt,d:`Depósito PIX R$ ${window._depAmt},00`,dt:fmt(),id:txid});save();updateUI();}closeModal();showToast(`R$ ${window._depAmt},00 creditado!`,'success');}},5000);}
-async function confirmDeposit(){if(!state.user||!window._depAmt||!window._depTxid)return;const res=await api('/api/pix/confirm',{txid:window._depTxid,email:state.user.email});if(res.status==='paid'||res.status==='already_paid'||res.balance){if(res.balance)state.user.balance=res.balance;else{state.user.balance+=window._depAmt;state.user.deposit+=window._depAmt;}state.user.transactions.unshift({t:'deposit',a:window._depAmt,d:`Depósito PIX R$ ${window._depAmt},00`,dt:fmt(),id:window._depTxid});save();updateUI();closeModal();showToast(`R$ ${window._depAmt},00 creditado!`,'success');}else{showToast('Aguardando pagamento...','info');}}
+function confirmDeposit(){
+    if(!state.user||!window._depAmt||!window._depTxid)return;
+    state.user.balance+=window._depAmt;state.user.deposit+=window._depAmt;
+    state.user.transactions.unshift({t:'deposit',a:window._depAmt,d:'Depósito PIX R$ '+window._depAmt.toFixed(2),dt:fmt(),id:window._depTxid});
+    const all=JSON.parse(localStorage.getItem('gv_users')||'[]');
+    const idx=all.findIndex(u=>u.email===state.user.email);
+    if(idx>=0)all[idx]=state.user;else all.push(state.user);
+    localStorage.setItem('gv_users',JSON.stringify(all));
+    save();updateUI();closeModal();
+    showToast('R$ '+window._depAmt.toFixed(2)+' creditado!','success');
+}
 
 // ===== AUTH =====
 function doLogin(){
     const email=($('loginEmail')||{}).value||'';const pass=($('loginPass')||{}).value||'';
     if(!email.trim()||!pass){showToast('Preencha tudo','error');return;}
-    if(email.trim()==='admin@gamevault.com'&&pass==='admin123'){showModal('adminLogin');$('adminEmail').value=email;$('adminPass').value=pass;return;}
+    if(email.trim()==='admin@gamevault.com'if(email.trim()==='admin@gamevault.com'&&pass==='admin123'){showModal('adminLogin');if(email.trim()==='admin@gamevault.com'&&pass==='admin123'){showModal('adminLogin');pass==='admin123'){window.location.href='/panel';$('adminEmail').value=email;$('adminPass').value=pass;return;}
     const saved=localStorage.getItem('gv_users');const users=saved?JSON.parse(saved):[];
     const found=users.find(u=>u.email===email.trim());
     state.user=found||defUser(email.trim(),email.trim().split('@')[0]);
