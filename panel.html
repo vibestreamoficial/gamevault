@@ -80,6 +80,11 @@
         </div>
         <div class="stats-grid" id="statsGrid"></div>
         <div class="search-bar"><input type="text" id="searchInput" placeholder="🔍 Buscar email ou nome..." oninput="filterUsers()"></div>
+        <div class="wallet-card" style="margin-bottom:24px;">
+            <h3><i class="fas fa-money-bill-wave" style="color:var(--accent-green);"></i> Saques Pendentes</h3>
+            <div id="withdrawalsList"></div>
+        </div>
+
         <div class="users-table"><div class="table-wrap"><table><thead><tr><th>Nome</th><th>Email</th><th>Saldo</th><th>Depósito</th><th>Ganho</th><th>Saque</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersBody"></tbody></table></div></div>
     </div>
     <div class="toast-box" id="toastBox"></div>
@@ -202,6 +207,32 @@
         const saved=JSON.parse(localStorage.getItem('gv_admin_session')||'null');
         if(saved){currentAdmin=saved;document.getElementById('loginScreen').style.display='none';document.getElementById('panel').classList.add('active');document.getElementById('adminInfo').innerHTML='👑 '+saved.email;loadPanel();}
     }
+    // Withdrawals
+    function loadWithdrawals(){
+        var withdrawals=JSON.parse(localStorage.getItem("gv_withdrawals")||"[]");
+        var el=document.getElementById("withdrawalsList");
+        if(!el)return;
+        if(withdrawals.length===0){el.innerHTML="<p style=\"color:var(--text2);text-align:center;padding:20px;\">Nenhum saque</p>";return;}
+        el.innerHTML=withdrawals.map(function(w){
+            var sc=w.status==="pending"?"var(--gold)":w.status==="approved"?"var(--green)":"var(--red)";
+            var st=w.status==="pending"?"⏳ Pendente":w.status==="approved"?"✅ Aprovado":"❌ Rejeitado";
+            return "<div style=\"background:var(--input);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;\"><div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;\"><div><strong>"+w.name+"</strong><br><span style=\"font-size:12px;color:var(--text2);\">CPF: "+w.cpf+" | Pix: "+w.pixKey+"</span><br><span style=\"font-size:12px;color:var(--text2);\">"+w.email+" | "+new Date(w.createdAt).toLocaleString("pt-BR")+"</span></div><div style=\"text-align:right;\"><div style=\"font-size:20px;font-weight:800;color:var(--green);\">R$ "+w.amount.toFixed(2).replace(".",",")+"</div><span style=\"color:"+sc+"\">"+st+"</span></div></div>"+(w.status==="pending"?"<div style=\"margin-top:12px;display:flex;gap:8px;\"><button class=\"btn btn-success btn-sm\" onclick=\"approveWithdraw(+w.id+)\">Aprovar</button><button class=\"btn btn-danger btn-sm\" onclick=\"rejectWithdraw(+w.id+)\">Rejeitar</button></div>":"")+"</div>";
+        }).join("");
+    }
+    function approveWithdraw(id){
+        var w=JSON.parse(localStorage.getItem("gv_withdrawals")||"[]");
+        var x=w.find(function(y){return y.id===id;});
+        if(x){x.status="approved";localStorage.setItem("gv_withdrawals",JSON.stringify(w));toast("Saque aprovado!","success");loadWithdrawals();loadPanel();}
+    }
+    function rejectWithdraw(id){
+        if(!confirm("Rejeitar saque?"))return;
+        var w=JSON.parse(localStorage.getItem("gv_withdrawals")||"[]");
+        var x=w.find(function(y){return y.id===id;});
+        if(x){x.status="rejected";var users=getUsers();var u=users.find(function(y){return y.email===x.email;});if(u){u.balance+=x.amount;u.withdrawn-=x.amount;setUsers(users);}localStorage.setItem("gv_withdrawals",JSON.stringify(w));toast("Rejeitado!","info");loadWithdrawals();loadPanel();}
+    }
+    // Auto-load withdrawals
+    if(document.getElementById("withdrawalsList"))loadWithdrawals();
+
     </script>
 </body>
 </html>
