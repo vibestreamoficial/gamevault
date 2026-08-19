@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameVault - Plataforma de Jogos com Prêmios Reais</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <!-- Preloader -->
+    <div id="preloader">
+        <div class="loader">
+            <div class="loader-ring"></div>
+            <div class="loader-text">GAMEVAULT</div>
+            <div class="loader-sub">Carregando...</div>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav id="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo" onclick="showPage('home')">
+                <i class="fas fa-gamepad"></i> GAME<span>VAULT</span>
+            </a>
+            <div class="nav-links">
+                <a href="#" onclick="showPage('home')" class="nav-link active" data-page="home">Início</a>
+                <a href="#" onclick="showPage('games')" class="nav-link" data-page="games">Jogos</a>
+                <a href="#" onclick="showPage('wallet')" class="nav-link" data-page="wallet">Carteira</a>
+                <a href="#" onclick="showPage('tournaments')" class="nav-link" data-page="tournaments">Torneios</a>
+                <a href="#" onclick="showPage('responsible')" class="nav-link" data-page="responsible">Jogo Responsável</a>
+            </div>
+            <div class="nav-actions">
+                <div class="balance-display" id="balanceDisplay">
+                    <i class="fas fa-coins"></i> <span id="userBalance">0,00</span>
+                </div>
+                <div class="user-menu">
+                    <button class="user-btn" onclick="toggleUserMenu()">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="userName">Entrar</span>
+                    </button>
+                    <div class="dropdown" id="userDropdown">
+                        <div id="authButtons">
+                            <a href="#" onclick="showModal('login')"><i class="fas fa-sign-in-alt"></i> Login</a>
+                            <a href="#" onclick="showModal('register')"><i class="fas fa-user-plus"></i> Cadastrar</a>
+                        </div>
+                        <div id="userActions" style="display:none">
+                            <a href="#" onclick="showPage('dashboard')"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                            <a href="#" onclick="showPage('wallet')"><i class="fas fa-wallet"></i> Carteira</a>
+                            <a href="#" onclick="showPage('history')"><i class="fas fa-history"></i> Histórico</a>
+                            <a href="#" onclick="showPage('limits')"><i class="fas fa-ban"></i> Meus Limites</a>
+                            <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sair</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="mainContent">
+        <!-- HOME -->
+        <section id="page-home" class="page active">
+            <div class="hero">
+                <div class="hero-content">
+                    <div class="hero-badge"><i class="fas fa-shield-halved"></i> Licenciado e Regulamentado</div>
+                    <h1>Jogue e Ganhe <span class="highlight">Prêmios Reais</span></h1>
+                    <p>Plataforma oficial de jogos com prêmios em dinheiro. Jogo 100% justo, verificável e seguro.</p>
+                    <div class="hero-stats">
+                        <div class="stat"><span class="stat-num" data-target="50000">0</span>+<span class="stat-label">Jogadores</span></div>
+                        <div class="stat"><span class="stat-num" data-target="2500000">0</span>+<span class="stat-label">Prêmios Pagos</span></div>
+                        <div class="stat"><span class="stat-num" data-target="99">0</span>%<span class="stat-label">Satisfação</span></div>
+                    </div>
+                    <div class="hero-actions">
+                        <button class="btn btn-primary" onclick="showPage('games')"><i class="fas fa-play"></i> Começar a Jogar</button>
+                        <button class="btn btn-outline" onclick="showPage('responsible')"><i class="fas fa-info-circle"></i> Jogo Responsável</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Featured Games -->
+            <div class="section">
+                <div class="container">
+                    <div class="section-header">
+                        <h2><i class="fas fa-fire"></i> Jogos em Destaque</h2>
+                        <p>Os jogos mais populares da plataforma</p>
+                    </div>
+                    <div class="games-grid" id="featuredGames"></div>
+                </div>
+            </div>
+
+            <!-- How it Works -->
+            <div class="section section-dark">
+                <div class="container">
+                    <div class="section-header">
+                        <h2><i class="fas fa-question-circle"></i> Como Funciona</h2>
+                    </div>
+                    <div class="steps-grid">
+                        <div class="step-card">
+                            <div class="step-num">1</div>
+                            <i class="fas fa-user-plus"></i>
+                            <h3>Cadastre-se</h3>
+                            <p>Crie sua conta gratuitamente e complete a verificação KYC</p>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-num">2</div>
+                            <i class="fas fa-wallet"></i>
+                            <h3>Deposite</h3>
+                            <p>Adicione fundos na sua carteira com PIX, cartão ou boleto</p>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-num">3</div>
+                            <i class="fas fa-gamepad"></i>
+                            <h3>Jogue</h3>
+                            <p>Escolha um jogo e comece a competir por prêmios reais</p>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-num">4</div>
+                            <i class="fas fa-money-bill-wave"></i>
+                            <h3>Saque</h3>
+                            <p>Retire seus ganhos a qualquer momento via PIX</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Responsible Gaming Banner -->
+            <div class="section">
+                <div class="container">
+                    <div class="responsible-banner">
+                        <div class="rb-icon"><i class="fas fa-shield-halved"></i></div>
+                        <div class="rb-content">
+                            <h3>Jogo Responsável</h3>
+                            <p>Esta plataforma opera em conformidade com a Lei 14.790/2023 (Regulamentação das Loterias e Apostas de Quota Fixa). Oferecemos ferramentas de autocontrole, limites de depósito e autoexclusão. Jogue com responsabilidade.</p>
+                            <button class="btn btn-outline btn-sm" onclick="showPage('responsible')"><i class="fas fa-info-circle"></i> Saiba Mais</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- GAMES PAGE -->
+        <section id="page-games" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="fas fa-gamepad"></i> Jogos Disponíveis</h1>
+                    <p>Escolha seu jogo e comece a competir</p>
+                </div>
+                <div class="games-filters">
+                    <button class="filter-btn active" onclick="filterGames('all')">Todos</button>
+                    <button class="filter-btn" onclick="filterGames('skill')">Habilidade</button>
+                    <button class="filter-btn" onclick="filterGames('trivia')">Quiz</button>
+                    <button class="filter-btn" onclick="filterGames('puzzle')">Puzzle</button>
+                    <button class="filter-btn" onclick="filterGames('arcade')">Arcade</button>
+                </div>
+                <div class="games-grid" id="allGames"></div>
+            </div>
+        </section>
+
+        <!-- GAME PLAY -->
+        <section id="page-play" class="page">
+            <div class="container" id="gamePlayArea"></div>
+        </section>
+
+        <!-- WALLET -->
+        <section id="page-wallet" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="fas fa-wallet"></i> Minha Carteira</h1>
+                </div>
+                <div class="wallet-layout">
+                    <div class="wallet-main">
+                        <div class="wallet-balance-card">
+                            <h3>Saldo Disponível</h3>
+                            <div class="balance-big">R$ <span id="walletBalance">0,00</span></div>
+                            <div class="wallet-actions">
+                                <button class="btn btn-primary" onclick="showModal('deposit')"><i class="fas fa-plus"></i> Depositar</button>
+                                <button class="btn btn-outline" onclick="showModal('withdraw')"><i class="fas fa-minus"></i> Sacar</button>
+                            </div>
+                        </div>
+                        <div class="wallet-history">
+                            <h3>Últimas Transações</h3>
+                            <div id="transactionList"></div>
+                        </div>
+                    </div>
+                    <div class="wallet-sidebar">
+                        <div class="limits-card">
+                            <h3><i class="fas fa-shield-halved"></i> Limites Responsáveis</h3>
+                            <div class="limit-item">
+                                <span>Depósito Diário</span>
+                                <span id="dailyLimit">R$ 500,00</span>
+                            </div>
+                            <div class="limit-item">
+                                <span>Depósito Semanal</span>
+                                <span id="weeklyLimit">R$ 2.000,00</span>
+                            </div>
+                            <div class="limit-item">
+                                <span>Aposta Máxima</span>
+                                <span id="maxBet">R$ 100,00</span>
+                            </div>
+                            <button class="btn btn-outline btn-sm btn-full" onclick="showPage('limits')">Alterar Limites</button>
+                        </div>
+                        <div class="kyc-card">
+                            <h3><i class="fas fa-id-card"></i> Verificação KYC</h3>
+                            <p>Complete a verificação para sacar ganhos.</p>
+                            <div class="kyc-status" id="kycStatus">
+                                <span class="status-pending"><i class="fas fa-clock"></i> Pendente</span>
+                            </div>
+                            <button class="btn btn-primary btn-sm btn-full" onclick="showModal('kyc')">Verificar Agora</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TOURNAMENTS -->
+        <section id="page-tournaments" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="fas fa-trophy"></i> Torneios</h1>
+                    <p>Compete por prêmios maiores</p>
+                </div>
+                <div class="tournaments-grid" id="tournamentsList"></div>
+            </div>
+        </section>
+
+        <!-- RESPONSIBLE GAMING -->
+        <section id="page-responsible" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="fas fa-shield-halved"></i> Jogo Responsável</h1>
+                </div>
+                <div class="responsible-content">
+                    <div class="rg-section">
+                        <h2><i class="fas fa-exclamation-triangle"></i> Aviso Importante</h2>
+                        <p>Jogos de azar envolvem risco financeiro. Jogue apenas com dinheiro que você pode perder. Estabeleça limites antes de começar.</p>
+                    </div>
+                    <div class="rg-grid">
+                        <div class="rg-card">
+                            <i class="fas fa-clock"></i>
+                            <h3>Limites de Tempo</h3>
+                            <p>Defina quanto tempo pode jogar por sessão. A plataforma avisa quando o limite é atingido.</p>
+                        </div>
+                        <div class="rg-card">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <h3>Limites Financeiros</h3>
+                            <p>Defina limites de depósito diário, semanal e mensal. Não é possível ultrapassar os limites definidos.</p>
+                        </div>
+                        <div class="rg-card">
+                            <i class="fas fa-ban"></i>
+                            <h3>Autoexclusão</h3>
+                            <p>Você pode se autoexcluir por 24h, 7 dias ou 30 dias. Durante o período, não é possível acessar jogos.</p>
+                        </div>
+                        <div class="rg-card">
+                            <i class="fas fa-headset"></i>
+                            <h3>Suporte</h3>
+                            <p>Em caso de problema com jogo, entre em contato com o suporte ou busque ajuda profissional.</p>
+                        </div>
+                    </div>
+                    <div class="rg-section">
+                        <h2><i class="fas fa-gavel"></i> Regulamentação</h2>
+                        <p>Esta plataforma opera em conformidade com a Lei nº 14.790/2023, que regulamenta as loterias e as apostas de quota fixa no Brasil. Todos os jogos são auditados por empresas independentes para garantir fairness.</p>
+                        <ul class="rg-list">
+                            <li><i class="fas fa-check"></i> Licenciada pela SPA/Loterias</li>
+                            <li><i class="fas fa-check"></i> Auditoria independente de RNG</li>
+                            <li><i class="fas fa-check"></i> Proteção de dados (LGPD)</li>
+                            <li><i class="fas fa-check"></i> Verificação de idade (18+)</li>
+                            <li><i class="fas fa-check"></i> KYC obrigatório para saques</li>
+                        </ul>
+                    </div>
+                    <div class="rg-section">
+                        <h2><i class="fas fa-phone"></i> Ajuda</h2>
+                        <p>Se você ou alguém que conhece tem problemas com jogo, procure ajuda:</p>
+                        <ul class="rg-list">
+                            <li><i class="fas fa-phone"></i> CVV - Centro de Valorização da Vida: 188</li>
+                            <li><i class="fas fa-phone"></i> SOS Dependência Química: (11) 3053-0533</li>
+                            <li><i class="fas fa-envelope"></i> suporte@gamevault.com</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DASHBOARD -->
+        <section id="page-dashboard" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="fas fa-tachometer-alt"></i> Meu Painel</h1>
+                </div>
+                <div class="dashboard-grid" id="dashboardContent"></div>
+            </div>
+        </section>
+
+        <!-- HISTORY -->
+        <section id="page-history" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="fas fa-history"></i> Histórico</h1>
+                </div>
+                <div id="historyList"></div>
+            </div>
+        </section>
+
+        <!-- LIMITS -->
+        <section id="page-limits" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="fas fa-ban"></i> Meus Limites</h1>
+                </div>
+                <div class="limits-form" id="limitsForm"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <h3><i class="fas fa-gamepad"></i> GAMEVAULT</h3>
+                    <p>Plataforma oficial de jogos com prêmios reais. Licenciada e regulamentada.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Jogos</h4>
+                    <a href="#" onclick="showPage('games')">Todos os Jogos</a>
+                    <a href="#" onclick="showPage('tournaments')">Torneios</a>
+                    <a href="#" onclick="showPage('games')">Mais Populares</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Legal</h4>
+                    <a href="#" onclick="showPage('responsible')">Jogo Responsável</a>
+                    <a href="#">Termos de Uso</a>
+                    <a href="#">Política de Privacidade</a>
+                    <a href="#">Política de Cookies</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Suporte</h4>
+                    <a href="#">Central de Ajuda</a>
+                    <a href="#">Contato</a>
+                    <a href="#">RGPD/LGPD</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 GameVault. Todos os direitos reservados. Licenciado pela SPA/Loterias.</p>
+                <p class="footer-warning"><i class="fas fa-exclamation-triangle"></i> Jogue com responsabilidade. 18+</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
