@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameVault Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+    :root{--bg:#0a0a0f;--bg2:#12121a;--card:#1a1a2e;--input:#16162a;--text:#fff;--text2:#a0a0b8;--purple:#7c3aed;--cyan:#22d3ee;--green:#10b981;--red:#ef4444;--gold:#f59e0b;--border:#2a2a3e;--radius:12px;--shadow:0 8px 32px rgba(0,0,0,0.4);}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+    
+    .login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,rgba(124,58,237,0.1),rgba(34,211,238,0.05));}
+    .login-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:40px;width:100%;max-width:400px;box-shadow:var(--shadow);}
+    .login-box h1{text-align:center;font-size:24px;margin-bottom:8px;}
+    .login-box h1 i{color:var(--purple);}
+    .login-box p{text-align:center;color:var(--text2);font-size:13px;margin-bottom:24px;}
+    .input-group{margin-bottom:16px;}
+    .input-group label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--text2);}
+    .input-group input{width:100%;padding:12px 16px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;}
+    .input-group input:focus{outline:none;border-color:var(--purple);}
+    .btn{padding:12px 24px;border-radius:var(--radius);font-size:15px;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all 0.3s;width:100%;justify-content:center;}
+    .btn-primary{background:linear-gradient(135deg,var(--purple),var(--cyan));color:#fff;}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(124,58,237,0.4);}
+    .btn-success{background:var(--green);color:#fff;}
+    .btn-danger{background:var(--red);color:#fff;}
+    .btn-outline{background:transparent;color:var(--text);border:1px solid var(--border);}
+    .btn-sm{padding:6px 12px;font-size:12px;width:auto;justify-content:center;}
+    .error-msg{color:var(--red);font-size:13px;text-align:center;margin-top:12px;display:none;}
+    
+    .panel{display:none;padding:20px;max-width:1400px;margin:0 auto;}
+    .panel.active{display:block;}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+    .header h1{font-size:24px;}
+    .header h1 i{color:var(--purple);}
+    .admin-badge{background:linear-gradient(135deg,var(--purple),var(--cyan));padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;}
+    
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;}
+    .stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+    .stat-card .label{font-size:13px;color:var(--text2);}
+    .stat-card .value{font-size:28px;font-weight:800;margin-top:4px;}
+    
+    .search-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:24px;}
+    .search-bar input{width:100%;padding:12px 16px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;}
+    .search-bar input:focus{outline:none;border-color:var(--purple);}
+    
+    .users-table{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+    .table-wrap{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;}
+    th,td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--border);font-size:13px;}
+    th{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:1px;background:var(--bg2);}
+    tr:hover{background:rgba(124,58,237,0.05);}
+    .badge{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;display:inline-block;}
+    .badge-banned{background:rgba(239,68,68,0.15);color:var(--red);}
+    .badge-active{background:rgba(16,185,129,0.15);color:var(--green);}
+    .badge-admin{background:rgba(245,158,11,0.15);color:var(--gold);}
+    .badge-pending{background:rgba(163,163,163,0.15);color:var(--text2);}
+    
+    .edit-input{background:var(--input);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;width:100%;min-width:80px;}
+    .edit-input:focus{outline:none;border-color:var(--purple);}
+    
+    .actions{display:flex;gap:4px;flex-wrap:nowrap;}
+    
+    .toast-container{position:fixed;top:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;}
+    .toast{padding:14px 20px;border-radius:var(--radius);font-size:14px;font-weight:500;color:#fff;box-shadow:var(--shadow);animation:slideIn 0.3s;}
+    .toast-success{background:var(--green);}
+    .toast-error{background:var(--red);}
+    .toast-info{background:var(--purple);}
+    @keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+    
+    .empty{text-align:center;padding:40px;color:var(--text2);}
+    
+    @media(max-width:768px){.header{flex-direction:column;align-items:flex-start;}}
+    </style>
+</head>
+<body>
+    <!-- LOGIN -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-box">
+            <h1><i class="fas fa-user-shield"></i> Admin Panel</h1>
+            <p>Acesso restrito a administradores</p>
+            <div class="input-group">
+                <label>Email</label>
+                <input type="email" id="adminEmail" placeholder="admin@email.com">
+            </div>
+            <div class="input-group">
+                <label>Senha</label>
+                <input type="password" id="adminPass" placeholder="••••">
+            </div>
+            <button class="btn btn-primary" onclick="doLogin()"><i class="fas fa-sign-in-alt"></i> Entrar</button>
+            <div class="error-msg" id="errorMsg">Credenciais inválidas</div>
+        </div>
+    </div>
+
+    <!-- PANEL -->
+    <div class="panel" id="panel">
+        <div class="header">
+            <h1><i class="fas fa-crown"></i> Painel Admin</h1>
+            <div style="display:flex;gap:12px;align-items:center;">
+                <span class="admin-badge" id="adminInfo"></span>
+                <a href="/" class="btn btn-outline btn-sm"><i class="fas fa-home"></i> Site</a>
+                <button class="btn btn-danger btn-sm" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
+            </div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="🔍 Buscar por email ou nome..." oninput="filterUsers()">
+        </div>
+
+        <div class="users-table">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Saldo</th>
+                            <th>Depósito</th>
+                            <th>Ganho</th>
+                            <th>Saque</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+    const API = window.location.origin;
+    const ADMINS = ['Nicolas21301012@gmail.com','dohypemeno5@gmail.com'];
+    let currentAdmin = null;
+
+    async function api(path, body) {
+        try {
+            const opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
+            const r = await fetch(API + path, opts);
+            return await r.json();
+        } catch (e) { return { error: e.message }; }
+    }
+
+    async function doLogin() {
+        const email = document.getElementById('adminEmail').value.trim();
+        const pass = document.getElementById('adminPass').value;
+        if (!email || !pass) { document.getElementById('errorMsg').style.display = 'block'; return; }
+        
+        const res = await api('/api/admin/login', { email, password: pass });
+        if (res.ok) {
+            currentAdmin = res.admin;
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('panel').classList.add('active');
+            document.getElementById('adminInfo').innerHTML = `👑 ${res.admin.email}`;
+            loadPanel();
+        } else {
+            document.getElementById('errorMsg').style.display = 'block';
+            document.getElementById('errorMsg').textContent = res.error || 'Credenciais inválidas';
+        }
+    }
+
+    function doLogout() {
+        currentAdmin = null;
+        document.getElementById('panel').classList.remove('active');
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('adminEmail').value = '';
+        document.getElementById('adminPass').value = '';
+    }
+
+    async function loadPanel() {
+        const stats = await api('/api/admin/stats');
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="stat-card"><div class="label">Usuários</div><div class="value">${stats.totalUsers||0}</div></div>
+            <div class="stat-card"><div class="label">Depositado</div><div class="value" style="color:var(--green);">R$ ${(stats.totalDeposits||0).toFixed(2).replace('.',',')}</div></div>
+            <div class="stat-card"><div class="label">Sacado</div><div class="value" style="color:var(--red);">R$ ${(stats.totalWithdraws||0).toFixed(2).replace('.',',')}</div></div>
+            <div class="stat-card"><div class="label">Lucro</div><div class="value" style="color:var(--gold);">R$ ${(stats.profit||0).toFixed(2).replace('.',',')}</div></div>
+            <div class="stat-card"><div class="label">Banidos</div><div class="value" style="color:var(--red);">${stats.bannedCount||0}</div></div>
+            <div class="stat-card"><div class="label">Jogos Totais</div><div class="value">${stats.todayGames||0}</div></div>
+        `;
+
+        const data = await api('/api/admin/users');
+        const users = data.users || [];
+        const banned = data.banned || [];
+
+        const tbody = document.getElementById('usersBody');
+        tbody.innerHTML = users.length === 0 ? '<tr><td colspan="8" class="empty"><i class="fas fa-users"></i> Nenhum usuário</td></tr>' :
+        users.map(u => {
+            const isBanned = banned.includes(u.email);
+            const isAdm = ADMINS.includes(u.email);
+            return `<tr class="user-row" data-email="${u.email}" data-name="${(u.name||'').toLowerCase()}">
+                <td><input class="edit-input" value="${u.name||''}" onchange="editUser('${u.email}','name',this.value)"></td>
+                <td style="font-size:11px;">${u.email}${isAdm?'<br><span class="badge badge-admin">👑 Owner</span>':''}</td>
+                <td><input class="edit-input" type="number" value="${u.balance||0}" onchange="editUser('${u.email}','balance',this.value)"></td>
+                <td style="color:var(--green);font-size:12px;">R$ ${(u.deposit||0).toFixed(2).replace('.',',')}</td>
+                <td style="font-size:12px;">R$ ${(u.won||0).toFixed(2).replace('.',',')}</td>
+                <td style="color:var(--red);font-size:12px;">R$ ${(u.withdrawn||0).toFixed(2).replace('.',',')}</td>
+                <td>${isBanned?'<span class="badge badge-banned">🚫 Banido</span>':u.kyc==='approved'?'<span class="badge badge-active">✓ Verificado</span>':'<span class="badge badge-pending">⏳ Pendente</span>'}</td>
+                <td><div class="actions">
+                    ${isBanned?`<button class="btn btn-outline btn-sm" onclick="unbanUser('${u.email}')"><i class="fas fa-check"></i></button>`:`<button class="btn btn-danger btn-sm" onclick="banUser('${u.email}')"><i class="fas fa-ban"></i></button>`}
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.email}')"><i class="fas fa-trash"></i></button>
+                </div></td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function editUser(email, field, value) {
+        if (!currentAdmin) return;
+        const updates = {}; updates[field] = value;
+        const res = await api('/api/admin/edit', { targetEmail: email, adminEmail: currentAdmin.email, updates });
+        if (res.ok) { toast('Editado!', 'success'); loadPanel(); } else { toast(res.error || 'Erro', 'error'); }
+    }
+
+    async function banUser(email) {
+        if (!currentAdmin || !confirm(`Banir ${email}?`)) return;
+        const res = await api('/api/admin/ban', { email, adminEmail: currentAdmin.email });
+        if (res.ok) { toast(`${email} banido!`, 'success'); loadPanel(); } else { toast(res.error, 'error'); }
+    }
+
+    async function unbanUser(email) {
+        if (!currentAdmin) return;
+        const res = await api('/api/admin/unban', { email, adminEmail: currentAdmin.email });
+        if (res.ok) { toast(`${email} desbanido!`, 'success'); loadPanel(); } else { toast(res.error, 'error'); }
+    }
+
+    async function deleteUser(email) {
+        if (!currentAdmin || !confirm(`DELETAR ${email}? PERMANENTE!`)) return;
+        const res = await api('/api/admin/delete', { targetEmail: email, adminEmail: currentAdmin.email });
+        if (res.ok) { toast(`${email} deletado!`, 'success'); loadPanel(); } else { toast(res.error, 'error'); }
+    }
+
+    function filterUsers() {
+        const q = (document.getElementById('searchInput').value || '').toLowerCase();
+        document.querySelectorAll('.user-row').forEach(row => {
+            const email = (row.dataset.email || '').toLowerCase();
+            const name = (row.dataset.name || '').toLowerCase();
+            row.style.display = (!q || email.includes(q) || name.includes(q)) ? '' : 'none';
+        });
+    }
+
+    function toast(msg, type = 'info') {
+        const c = document.getElementById('toastContainer');
+        const t = document.createElement('div');
+        t.className = `toast toast-${type}`;
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 4000);
+    }
+
+    // Enter to login
+    document.getElementById('adminPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    </script>
+</body>
+</html>

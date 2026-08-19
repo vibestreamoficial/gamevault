@@ -138,10 +138,10 @@ const server=http.createServer(async(req,res)=>{
     }
 
     // Static files
-    const filePath=path.join(__dirname,'..',req.url==='/'?'index.html':req.url);
+    const filePath = req.url === "/panel" ? path.join(__dirname, "..", "panel.html") : req.url === "/" ? path.join(__dirname, "..", "index.html") : path.join(__dirname, "..", req.url);
     if(fs.existsSync(filePath)&&fs.statSync(filePath).isFile()){
         const ext=path.extname(filePath);
-        const types={'.html':'text/html','.css':'text/css','.js':'application/javascript','.json':'application/json'};
+        const types={'.html':'text/html','/panel':'text/html','.css':'text/css','.js':'application/javascript','.json':'application/json'};
         res.writeHead(200,{'Content-Type':types[ext]||'text/plain'});
         return fs.createReadStream(filePath).pipe(res);
     }
