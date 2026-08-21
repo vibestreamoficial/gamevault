@@ -249,15 +249,6 @@ async function submitWithdraw(){
     if(!pix){showToast('Preencha a chave Pix','error');return;}
     if(!amount||amount<10){showToast('Mínimo R$ 10','error');return;}
     if(amount>state.user.balance){showToast('Saldo insuficiente','error');return;}
-    var withdrawals=JSON.parse(localStorage.getItem('gv_withdrawals')||'[]');
-    var localId='WD'+Date.now();
-    withdrawals.push({id:localId,email:state.user.email,name:name,cpf:cpf,pixKey:pix,amount:amount,status:'pending',createdAt:new Date().toISOString()});
-    localStorage.setItem('gv_withdrawals',JSON.stringify(withdrawals));
-    state.user.balance-=amount;state.user.withdrawn+=amount;
-    state.user.transactions.unshift({t:'withdraw',a:-amount,d:'Saque LofiPay R$ '+amount.toFixed(2),dt:fmt()});
-    var all=getUsers();var idx=-1;for(var i=0;i<all.length;i++){if(all[i].email===state.user.email){idx=i;break;}}
-    if(idx>=0)all[idx]=state.user;else all.push(state.user);setUsers(all);
-    save();updateUI();closeModal();
     try {
         var response=await fetch(GATEWAY_URL+'/api/withdraw-requests',{
             method:'POST',
@@ -266,9 +257,17 @@ async function submitWithdraw(){
         });
         var result=await response.json();
         if(!response.ok||!result.success) throw new Error(result.error||'Falha na fila');
+        var withdrawals=JSON.parse(localStorage.getItem('gv_withdrawals')||'[]');
+        withdrawals.push(Object.assign({},result.request,{localId:'WD'+Date.now()}));
+        localStorage.setItem('gv_withdrawals',JSON.stringify(withdrawals));
+        state.user.balance-=amount;state.user.withdrawn+=amount;
+        state.user.transactions.unshift({t:'withdraw',a:-amount,d:'Saque LofiPay R$ '+amount.toFixed(2),dt:fmt(),id:result.request.id});
+        var all=getUsers();var idx=-1;for(var i=0;i<all.length;i++){if(all[i].email===state.user.email){idx=i;break;}}
+        if(idx>=0)all[idx]=state.user;else all.push(state.user);setUsers(all);
+        save();updateUI();closeModal();
         showToast('Saque via LofiPay solicitado!','success');
     } catch(error) {
-        showToast('Saque registrado localmente. Fila offline.','error');
+        showToast('Fila offline. Saque não enviado e saldo mantido.','error');
     }
 }
 function requestWithdraw(){
