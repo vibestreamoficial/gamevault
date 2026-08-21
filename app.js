@@ -247,6 +247,7 @@ async function submitWithdraw(){
     if(!name){showToast('Preencha o nome','error');return;}
     if(!cpf||!validateCPF(cpf)){showToast('CPF inválido','error');return;}
     if(!pix){showToast('Preencha a chave Pix','error');return;}
+    if(/^000201/.test(pix)||pix.includes('BR.GOV.BCB.PIX')||pix.length>100){showToast('Isso é um QR/copiar-colar. Use só a chave: CPF, email, telefone ou EVP.','error');return;}
     if(!amount||amount<10){showToast('Mínimo R$ 10','error');return;}
     if(amount>state.user.balance){showToast('Saldo insuficiente','error');return;}
     try {
