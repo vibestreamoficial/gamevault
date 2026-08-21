@@ -1,6 +1,6 @@
 // GameVault v5.0.0 - 100% Frontend, zero erros
 const PIX_KEY='fff503e1-60b3-457b-bdc4-ddf2c892cfda';
-const GATEWAY_URL='https://developed-estimated-dip-significantly.trycloudflare.com';
+const GATEWAY_URL='https://antivirus-travel-bishop-eliminate.trycloudflare.com';
 
 const GAMES=[
 {id:1,name:"Quiz Milionário",category:"trivia",icon:"🧠",prize:150,entry:5,players:2340,badge:"hot"},
