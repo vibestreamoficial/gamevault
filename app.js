@@ -1,5 +1,6 @@
 // GameVault v5.0.0 - 100% Frontend, zero erros
 const PIX_KEY='fff503e1-60b3-457b-bdc4-ddf2c892cfda';
+const GATEWAY_URL='https://developed-estimated-dip-significantly.trycloudflare.com';
 
 const GAMES=[
 {id:1,name:"Quiz Milionário",category:"trivia",icon:"🧠",prize:150,entry:5,players:2340,badge:"hot"},
@@ -238,7 +239,7 @@ function validateCPF(cpf){
     var d2=11-(sum%11);if(d2>=10)d2=0;if(parseInt(cpf[10])!==d2)return false;
     return true;
 }
-function submitWithdraw(){
+async function submitWithdraw(){
     var name=(($('wName')||{}).value||'').trim();
     var cpf=(($('wCPF')||{}).value||'').trim();
     var pix=(($('wPix')||{}).value||'').trim();
@@ -249,14 +250,26 @@ function submitWithdraw(){
     if(!amount||amount<10){showToast('Mínimo R$ 10','error');return;}
     if(amount>state.user.balance){showToast('Saldo insuficiente','error');return;}
     var withdrawals=JSON.parse(localStorage.getItem('gv_withdrawals')||'[]');
-    withdrawals.push({id:'WD'+Date.now(),email:state.user.email,name:name,cpf:cpf,pixKey:pix,amount:amount,status:'pending',createdAt:new Date().toISOString()});
+    var localId='WD'+Date.now();
+    withdrawals.push({id:localId,email:state.user.email,name:name,cpf:cpf,pixKey:pix,amount:amount,status:'pending',createdAt:new Date().toISOString()});
     localStorage.setItem('gv_withdrawals',JSON.stringify(withdrawals));
     state.user.balance-=amount;state.user.withdrawn+=amount;
     state.user.transactions.unshift({t:'withdraw',a:-amount,d:'Saque LofiPay R$ '+amount.toFixed(2),dt:fmt()});
     var all=getUsers();var idx=-1;for(var i=0;i<all.length;i++){if(all[i].email===state.user.email){idx=i;break;}}
     if(idx>=0)all[idx]=state.user;else all.push(state.user);setUsers(all);
     save();updateUI();closeModal();
-    showToast('Saque de R$ '+amount.toFixed(2)+' solicitado!','success');
+    try {
+        var response=await fetch(GATEWAY_URL+'/api/withdraw-requests',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({email:state.user.email,name:name,cpf:cpf,pixKey:pix,amount:amount})
+        });
+        var result=await response.json();
+        if(!response.ok||!result.success) throw new Error(result.error||'Falha na fila');
+        showToast('Saque via LofiPay solicitado!','success');
+    } catch(error) {
+        showToast('Saque registrado localmente. Fila offline.','error');
+    }
 }
 function requestWithdraw(){
     if(!state.user){showModal('login');return;}
