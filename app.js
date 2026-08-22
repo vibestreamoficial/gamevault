@@ -1,7 +1,7 @@
 // GameVault v5.0.0 - 100% Frontend, zero erros
 const ADMIN_EMAILS=['nicolas21301012@gmail.com','dohypemeno5@gmail.com'];
 const PIX_KEY='fff503e1-60b3-457b-bdc4-ddf2c892cfda';
-const API_URL='https://dig-solved-facts-consequently.trycloudflare.com';
+const API_URL='https://emphasis-strings-modelling-herbal.trycloudflare.com';
 const API_URLS=[API_URL];
 
 const GAMES=[
