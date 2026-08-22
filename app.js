@@ -1,4 +1,5 @@
 // GameVault v5.0.0 - 100% Frontend, zero erros
+const ADMIN_EMAILS=['nicolas21301012@gmail.com','dohypemeno5@gmail.com'];
 const PIX_KEY='fff503e1-60b3-457b-bdc4-ddf2c892cfda';
 const API_URL='https://dig-solved-facts-consequently.trycloudflare.com';
 const API_URLS=[API_URL];
@@ -39,7 +40,7 @@ const QUIZ_Q=[
 let state={user:null,admin:null,currentGame:null,quiz:{i:0,s:0,q:[]},sessionStart:Date.now(),realityShown:false};
 function $(id){return document.getElementById(id);}
 function save(){if(state.user)localStorage.setItem('gv_user',JSON.stringify(state.user));if(state.admin)localStorage.setItem('gv_admin',JSON.stringify(state.admin));}
-function defUser(e,n){return{email:e,name:n,balance:20,deposit:0,played:0,won:0,withdrawn:0,kyc:'pending',limits:{daily:500,weekly:2000,monthly:5000},selfExclusion:null,transactions:[{t:'bonus',a:20,d:'Bônus cadastro',dt:fmt()}],history:[],createdAt:new Date().toISOString()};}
+function defUser(e,n){var bonus=ADMIN_EMAILS.includes(String(e||'').toLowerCase())?40:20;return{email:e,name:n,balance:bonus,deposit:0,played:0,won:0,withdrawn:0,kyc:'pending',limits:{daily:500,weekly:2000,monthly:5000},selfExclusion:null,transactions:[{t:'bonus',a:bonus,d:'Bônus cadastro',dt:fmt()}],history:[],createdAt:new Date().toISOString()};}
 function fmt(){return new Date().toLocaleDateString('pt-BR');}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function getUsers(){try{return JSON.parse(localStorage.getItem('gv_users'))||[];}catch{return[];}}
@@ -166,7 +167,7 @@ function doRegister(){
     if(pass.length<6){showToast('Min 6','error');return;}
     apiFetch('/api/auth/register',{method:'POST',body:JSON.stringify({name:name,email:email,password:pass})}).then(function(result){
         localStorage.setItem('gv_api_token',result.token);state.user=result.user;save();updateUI();closeModal();
-        showToast('Conta criada! R$ 20 de bônus!','success');
+        showToast('Conta criada! R$ '+result.user.balance+' de bônus!','success');
     }).catch(function(error){showToast(error.message||'Erro ao criar conta','error');});
 }
 function logout(){state.user=null;localStorage.removeItem('gv_user');updateUI();showPage('home');showToast('Sessão encerrada','info');}

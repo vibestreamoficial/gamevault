@@ -141,15 +141,21 @@ function insertTransaction(userId, type, amountCents, description, referenceId =
 }
 
 function createUser(email, name, password) {
-  const bonusCents = Number(process.env.SIGNUP_BONUS_CENTS || 2000);
+  const normalizedEmail = String(email || '').toLowerCase();
+  const isAdmin = Boolean(db.prepare('SELECT 1 FROM admins WHERE email = ?').get(normalizedEmail));
+  const bonusCents = Number(
+    isAdmin
+      ? process.env.ADMIN_SIGNUP_BONUS_CENTS || 4000
+      : process.env.SIGNUP_BONUS_CENTS || 2000
+  );
   return transaction(() => {
     const info = db.prepare(`
       INSERT INTO users(email, password_hash, name, balance_cents)
       VALUES (?, ?, ?, ?)
-    `).run(email.toLowerCase(), hashPassword(password), name, bonusCents);
+    `).run(normalizedEmail, hashPassword(password), name, bonusCents);
     const userId = Number(info.lastInsertRowid);
     if (bonusCents > 0) {
-      insertTransaction(userId, 'bonus', bonusCents, 'Bônus cadastro', `signup:${userId}`);
+      insertTransaction(userId, 'bonus', bonusCents, isAdmin ? 'Bônus cadastro administrador' : 'Bônus cadastro', `signup:${userId}`);
     }
     return userId;
   });
