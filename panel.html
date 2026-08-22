@@ -84,48 +84,77 @@
             <h3><i class="fas fa-money-bill-wave" style="color:var(--accent-green);"></i> Saques Pendentes</h3>
             <div id="withdrawalsList"></div>
         </div>
+        <div class="wallet-card" style="margin-bottom:24px;">
+            <h3><i class="fas fa-qrcode" style="color:var(--accent-cyan);"></i> Depósitos Pendentes</h3>
+            <div id="depositsList"></div>
+        </div>
+        <div class="wallet-card" style="margin-bottom:24px;">
+            <h3><i class="fas fa-list-check" style="color:var(--accent-gold);"></i> Tarefas Pendentes</h3>
+            <div id="tasksList"></div>
+        </div>
 
         <div class="users-table"><div class="table-wrap"><table><thead><tr><th>Nome</th><th>Email</th><th>Saldo</th><th>Depósito</th><th>Ganho</th><th>Saque</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersBody"></tbody></table></div></div>
     </div>
     <div class="toast-box" id="toastBox"></div>
     <script>
-    const ADMINS=[
-        {email:'Nicolas21301012@gmail.com',pass:'admin123',role:'owner'},
-        {email:'dohypemeno5@gmail.com',pass:'admin123',role:'owner'}
-    ];
     const ADMIN_EMAILS=['Nicolas21301012@gmail.com','dohypemeno5@gmail.com'];
+    const API_URL='https://ala-defence-reel-flexible.trycloudflare.com';
     let currentAdmin=null;
+    let adminData=null;
+
+    async function adminApi(path,options={}){
+        const response=await fetch(API_URL+path,{...options,headers:{'Content-Type':'application/json','X-Admin-Token':localStorage.getItem('gv_admin_api_token')||'',...(options.headers||{})}});
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(data.error||('HTTP '+response.status));
+        return data;
+    }
 
     function getUsers(){try{return JSON.parse(localStorage.getItem('gv_users'))||[];}catch{return[];}}
     function setUsers(u){localStorage.setItem('gv_users',JSON.stringify(u));}
     function getBanned(){try{return JSON.parse(localStorage.getItem('gv_banned'))||[];}catch{return[];}}
     function setBanned(b){localStorage.setItem('gv_banned',JSON.stringify(b));}
 
-    function doLogin(){
+    async function doLogin(){
         const email=document.getElementById('adminEmail').value.trim();
         const pass=document.getElementById('adminPass').value;
-        const admin=ADMINS.find(a=>a.email===email&&a.pass===pass);
-        if(admin){
-            currentAdmin=admin;
-            document.getElementById('loginScreen').style.display='none';
-            document.getElementById('panel').classList.add('active');
-            document.getElementById('adminInfo').innerHTML='👑 '+admin.email;
-            loadPanel();
-        }else{
+        try{
+            const result=await fetch(API_URL+'/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})}).then(r=>r.json());
+            if(!result.success)throw new Error(result.error||'Credenciais inválidas');
+            localStorage.setItem('gv_admin_api_token',result.token);
+            currentAdmin=result.admin;showPanel();loadPanel();
+        }catch(error){
             const el=document.getElementById('errorMsg');el.style.display='block';el.textContent='Credenciais inválidas';
         }
     }
 
+    function showPanel(){
+        localStorage.setItem('gv_admin_logged','1');
+        document.getElementById('loginScreen').style.display='none';
+        document.getElementById('panel').classList.add('active');
+        document.getElementById('adminInfo').innerHTML='👑 '+(currentAdmin?.email||'Admin');
+    }
+
     function doLogout(){
         currentAdmin=null;
+        localStorage.removeItem('gv_admin_api_token');
+        localStorage.removeItem('gv_admin_logged');
         document.getElementById('panel').classList.remove('active');
         document.getElementById('loginScreen').style.display='flex';
         document.getElementById('adminEmail').value='';
         document.getElementById('adminPass').value='';
     }
 
-    function loadPanel(){
-        const users=getUsers();
+    async function loadPanel(){
+        try{
+            adminData=await adminApi('/api/admin/overview');
+        }catch(error){
+            adminData=null;
+        }
+        renderPanel();
+    }
+
+    function renderPanel(){
+        const users=adminData?adminData.users:getUsers();
         const banned=getBanned();
         const totalDep=users.reduce((s,u)=>s+(u.deposit||0),0);
         const totalWit=users.reduce((s,u)=>s+(u.withdrawn||0),0);
@@ -136,11 +165,12 @@
             <div class="stat-card"><div class="label">Depositado</div><div class="value" style="color:var(--green);">R$ ${totalDep.toFixed(2).replace('.',',')}</div></div>
             <div class="stat-card"><div class="label">Sacado</div><div class="value" style="color:var(--red);">R$ ${totalWit.toFixed(2).replace('.',',')}</div></div>
             <div class="stat-card"><div class="label">Lucro</div><div class="value" style="color:var(--gold);">R$ ${(totalDep-totalWit-totalWon).toFixed(2).replace('.',',')}</div></div>
-            <div class="stat-card"><div class="label">Banidos</div><div class="value" style="color:var(--red);">${banned.length}</div></div>
-            <div class="stat-card"><div class="label">Jogos</div><div class="value">${users.reduce((s,u)=>s+(u.played||0),0)}</div></div>`;
+            <div class="stat-card"><div class="label">Banidos</div><div class="value" style="color:var(--red);">${adminData?users.filter(u=>u.banned).length:banned.length}</div></div>
+            <div class="stat-card"><div class="label">Jogos</div><div class="value">${users.reduce((s,u)=>s+(u.played||0),0)}</div></div>
+            ${adminData?`<div class="stat-card"><div class="label">Saques pendentes</div><div class="value">${adminData.stats.pendingWithdrawals}</div></div><div class="stat-card"><div class="label">Tarefas pendentes</div><div class="value">${adminData.stats.pendingTasks}</div></div>`:''}`;
 
         const tbody=document.getElementById('usersBody');
-        if(users.length===0){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text2);">Nenhum usuário registrado</td></tr>';return;}
+        if(users.length===0)tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text2);">Nenhum usuário registrado</td></tr>';
 
         tbody.innerHTML=users.map(u=>{
             const isBanned=banned.includes(u.email);
@@ -152,12 +182,13 @@
                 <td style="color:var(--green);font-size:12px;">R$ ${(u.deposit||0).toFixed(2).replace('.',',')}</td>
                 <td style="font-size:12px;">R$ ${(u.won||0).toFixed(2).replace('.',',')}</td>
                 <td style="color:var(--red);font-size:12px;">R$ ${(u.withdrawn||0).toFixed(2).replace('.',',')}</td>
-                <td>${isBanned?'<span class="badge badge-banned">🚫 Banido</span>':u.kyc==='approved'?'<span class="badge badge-active">✓ Verificado</span>':'<span class="badge badge-pending">⏳</span>'}</td>
+                <td>${(adminData?u.banned:isBanned)?'<span class="badge badge-banned">🚫 Banido</span>':u.kyc==='approved'?'<span class="badge badge-active">✓ Verificado</span>':'<span class="badge badge-pending">⏳</span>'}</td>
                 <td><div class="actions">
                     ${isBanned?`<button class="btn btn-outline btn-sm" onclick="unbanUser('${u.email}')"><i class="fas fa-check"></i></button>`:`<button class="btn btn-danger btn-sm" onclick="banUser('${u.email}')"><i class="fas fa-ban"></i></button>`}
                     <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.email}')"><i class="fas fa-trash"></i></button>
                 </div></td></tr>`;
         }).join('');
+        if(adminData)renderQueues();
     }
 
     function editUser(email,field,value){
@@ -203,38 +234,27 @@
     document.getElementById('adminPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
     // Auto-login check
-    if(localStorage.getItem('gv_admin_logged')==='1'){
-        const saved=JSON.parse(localStorage.getItem('gv_admin_session')||'null');
-        if(saved){currentAdmin=saved;document.getElementById('loginScreen').style.display='none';document.getElementById('panel').classList.add('active');document.getElementById('adminInfo').innerHTML='👑 '+saved.email;loadPanel();}
+    if(localStorage.getItem('gv_admin_api_token')){currentAdmin={email:'Admin'};showPanel();loadPanel();}
+    function money(cents){return 'R$ '+(cents/100).toFixed(2).replace('.',',');}
+
+    function queueCard(item,title,subtitle,resource){
+        const statusText=item.status==='PENDING'?'⏳ Pendente':(item.status==='APPROVED'||item.status==='PAID')?'✅ Aprovado':'❌ Rejeitado';
+        const color=item.status==='PENDING'?'var(--gold)':(item.status==='APPROVED'||item.status==='PAID')?'var(--green)':'var(--red)';
+        const buttons=item.status==='PENDING'?`<div style="margin-top:12px;display:flex;gap:8px;"><button class="btn btn-success btn-sm" onclick="adminAction('${resource}','${item.id||item.txid}','approve')">Aprovar</button><button class="btn btn-danger btn-sm" onclick="adminAction('${resource}','${item.id||item.txid}','reject')">Rejeitar</button></div>`:'';
+        const amountCents=item.amount_cents||0;
+        return `<div style="background:var(--input);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><strong>${title}</strong><br><span style="font-size:12px;color:var(--text2);">${subtitle}</span></div><div style="text-align:right;"><div style="font-size:20px;font-weight:800;">${money(amountCents)}</div><span style="color:${color}">${statusText}</span></div></div>${buttons}</div>`;
     }
-    // Withdrawals
-    function loadWithdrawals(){
-        var withdrawals=JSON.parse(localStorage.getItem("gv_withdrawals")||"[]");
-        var el=document.getElementById("withdrawalsList");
-        if(!el)return;
-        if(withdrawals.length===0){el.innerHTML="<p style=\"color:var(--text2);text-align:center;padding:20px;\">Nenhum saque</p>";return;}
-        el.innerHTML=withdrawals.map(function(w){
-            var sc=w.status==="pending"?"var(--gold)":w.status==="approved"?"var(--green)":"var(--red)";
-            var st=w.status==="pending"?"⏳ Pendente":w.status==="approved"?"✅ Aprovado":"❌ Rejeitado";
-            var btns="";
-            if(w.status==="pending"){
-                btns="<div style=\"margin-top:12px;display:flex;gap:8px;\"><button class=\"btn btn-success btn-sm\" onclick=\"approveWithdraw('"+w.id+"')\">Aprovar</button><button class=\"btn btn-danger btn-sm\" onclick=\"rejectWithdraw('"+w.id+"')\">Rejeitar</button></div>";
-            }
-            return "<div style=\"background:var(--input);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;\"><div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;\"><div><strong>"+w.name+"</strong><br><span style=\"font-size:12px;color:var(--text2);\">CPF: "+w.cpf+" | Pix: "+w.pixKey+"</span><br><span style=\"font-size:12px;color:var(--text2);\">"+w.email+" | "+new Date(w.createdAt).toLocaleString("pt-BR")+"</span></div><div style=\"text-align:right;\"><div style=\"font-size:20px;font-weight:800;color:var(--green);\">R$ "+w.amount.toFixed(2).replace(".",",")+"</div><span style=\"color:"+sc+"\">"+st+"</span></div></div>"+btns+"</div>";
-        }).join("");
+
+    function renderQueues(){
+        document.getElementById('withdrawalsList').innerHTML=adminData.withdrawals.length?adminData.withdrawals.map(item=>queueCard(item,item.full_name,`${item.email} | CPF: ${item.cpf} | Pix: ${item.pix_key}`,'withdrawals')).join(''):'<p style="color:var(--text2);">Nenhum saque</p>';
+        document.getElementById('depositsList').innerHTML=adminData.deposits.length?adminData.deposits.map(item=>queueCard(item,item.txid,item.email,'deposits')).join(''):'<p style="color:var(--text2);">Nenhum depósito</p>';
+        document.getElementById('tasksList').innerHTML=adminData.taskClaims.length?adminData.taskClaims.map(item=>queueCard(item,item.title,`${item.email} | ${item.id}`,'task-claims')).join(''):'<p style="color:var(--text2);">Nenhuma tarefa</p>';
     }
-    function approveWithdraw(id){
-        var w=JSON.parse(localStorage.getItem("gv_withdrawals")||"[]");
-        var x=w.find(function(y){return y.id===id;});
-        if(x){x.status="approved";localStorage.setItem("gv_withdrawals",JSON.stringify(w));toast("Saque aprovado!","success");loadWithdrawals();loadPanel();}
+
+    async function adminAction(resource,id,action){
+        if(action==='reject'&&!confirm('Rejeitar solicitação?'))return;
+        try{await adminApi('/api/admin/'+resource+'/'+id+'/'+action,{method:'POST'});toast('Solicitação atualizada!','success');loadPanel();}catch(error){toast(error.message,'error');}
     }
-    function rejectWithdraw(id){
-        if(!confirm("Rejeitar saque?"))return;
-        var w=JSON.parse(localStorage.getItem("gv_withdrawals")||"[]");
-        var x=w.find(function(y){return y.id===id;});
-        if(x){x.status="rejected";var users=getUsers();var u=users.find(function(y){return y.email===x.email;});if(u){u.balance+=x.amount;u.withdrawn-=x.amount;setUsers(users);}localStorage.setItem("gv_withdrawals",JSON.stringify(w));toast("Rejeitado!","info");loadWithdrawals();loadPanel();}
-    }
-    if(document.getElementById("withdrawalsList"))loadWithdrawals();
 
 
     </script>

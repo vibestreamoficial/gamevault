@@ -1,6 +1,7 @@
 // GameVault v5.0.0 - 100% Frontend, zero erros
 const PIX_KEY='fff503e1-60b3-457b-bdc4-ddf2c892cfda';
-const GATEWAY_URL='https://antivirus-travel-bishop-eliminate.trycloudflare.com';
+const API_URL='https://ala-defence-reel-flexible.trycloudflare.com';
+const GATEWAY_URL='https://stuck-ccd-presents-cube.trycloudflare.com';
 
 const GAMES=[
 {id:1,name:"Quiz Milionário",category:"trivia",icon:"🧠",prize:150,entry:5,players:2340,badge:"hot"},
@@ -45,6 +46,15 @@ function getUsers(){try{return JSON.parse(localStorage.getItem('gv_users'))||[];
 function setUsers(u){localStorage.setItem('gv_users',JSON.stringify(u));}
 function getBanned(){try{return JSON.parse(localStorage.getItem('gv_banned'))||[];}catch{return[];}}
 function setBanned(b){localStorage.setItem('gv_banned',JSON.stringify(b));}
+function apiToken(){return localStorage.getItem('gv_api_token')||'';}
+async function apiFetch(path,options){
+    options=options||{};options.headers=Object.assign({'Content-Type':'application/json'},options.headers||{});
+    if(apiToken())options.headers.Authorization='Bearer '+apiToken();
+    var response=await fetch(API_URL+path,options);
+    var data=await response.json().catch(function(){return{};});
+    if(!response.ok)throw new Error(data.error||('HTTP '+response.status));
+    return data;
+}
 
 // ===== PAGES =====
 function showPage(p){
@@ -111,21 +121,15 @@ function startDeposit(amount){
     if(!amount||amount<1){showToast('Mínimo R$ 1','error');return;}
     if(amount>500){showToast('Máximo R$ 500','error');return;}
     var banned=getBanned();if(banned.indexOf(state.user.email)!==-1){showToast('Conta banida!','error');return;}
-    window._depAmt=amount;
-    var pix=genPixCode(amount);
-    window._depTxid=pix.txid;window._depPayload=pix.payload;
-    showModal('pix');
-    var codeEl=$('pixCode');if(codeEl)codeEl.textContent=pix.payload;
+    apiFetch('/api/deposits',{method:'POST',body:JSON.stringify({amount:amount})}).then(function(result){
+        window._depAmt=amount;window._depTxid=result.txid;window._depPayload=result.payload;
+        showModal('pix');var codeEl=$('pixCode');if(codeEl)codeEl.textContent=result.payload;
+    }).catch(function(error){showToast(error.message||'Não foi possível gerar o depósito','error');});
 }
 function copyPix(){var code=$('pixCode');if(code){navigator.clipboard.writeText(code.textContent.trim()).then(function(){showToast('PIX copiado!','success');}).catch(function(){code.select();document.execCommand('copy');showToast('Copiado!','success');});}}
 function confirmDeposit(){
     if(!state.user||!window._depAmt||!window._depTxid)return;
-    state.user.balance+=window._depAmt;state.user.deposit+=window._depAmt;
-    state.user.transactions.unshift({t:'deposit',a:window._depAmt,d:'Depósito PIX R$ '+window._depAmt.toFixed(2),dt:fmt(),id:window._depTxid});
-    var all=getUsers();var idx=-1;for(var i=0;i<all.length;i++){if(all[i].email===state.user.email){idx=i;break;}}
-    if(idx>=0)all[idx]=state.user;else all.push(state.user);
-    setUsers(all);save();updateUI();closeModal();
-    showToast('R$ '+window._depAmt.toFixed(2)+' creditado!','success');
+    closeModal();showToast('Depósito em análise. Credita após aprovação admin.','info');
 }
 
 // ===== AUTH =====
@@ -134,11 +138,16 @@ function doLogin(){
     var pass=(($('loginPass')||{}).value||'');
     if(!email||!pass){showToast('Preencha tudo','error');return;}
     if((email==='Nicolas21301012@gmail.com'||email==='dohypemeno5@gmail.com')&&pass==='admin123'){window.location.href='/panel';return;}
-    var found=null;var users=getUsers();
-    for(var i=0;i<users.length;i++){if(users[i].email===email){found=users[i];break;}}
-    state.user=found||defUser(email,email.split('@')[0]);
-    if(!found){users.push(state.user);setUsers(users);}
-    save();updateUI();closeModal();showToast('Bem-vindo, '+state.user.name+'!','success');
+    apiFetch('/api/auth/login',{method:'POST',body:JSON.stringify({email:email,password:pass})}).then(function(result){
+        localStorage.setItem('gv_api_token',result.token);state.user=result.user;save();updateUI();closeModal();
+        showToast('Bem-vindo, '+result.user.name+'!','success');
+    }).catch(function(){
+        var found=null;var users=getUsers();
+        for(var i=0;i<users.length;i++){if(users[i].email===email){found=users[i];break;}}
+        state.user=found||defUser(email,email.split('@')[0]);
+        if(!found){users.push(state.user);setUsers(users);}
+        save();updateUI();closeModal();showToast('Modo local: API offline.','info');
+    });
 }
 function doRegister(){
     var name=(($('regName')||{}).value||'').trim();
@@ -148,9 +157,10 @@ function doRegister(){
     if(!name||!email||!pass){showToast('Preencha tudo','error');return;}
     if(!age){showToast('18+ obrigatório','error');return;}
     if(pass.length<6){showToast('Min 6','error');return;}
-    state.user=defUser(email,name);
-    var users=getUsers();users.push(state.user);setUsers(users);
-    save();updateUI();closeModal();showToast('Conta criada! R$ 50 bônus!','success');
+    apiFetch('/api/auth/register',{method:'POST',body:JSON.stringify({name:name,email:email,password:pass})}).then(function(result){
+        localStorage.setItem('gv_api_token',result.token);state.user=result.user;save();updateUI();closeModal();
+        showToast('Conta criada! R$ 50 bônus!','success');
+    }).catch(function(error){showToast(error.message||'Erro ao criar conta','error');});
 }
 function logout(){state.user=null;localStorage.removeItem('gv_user');updateUI();showPage('home');showToast('Sessão encerrada','info');}
 function toggleUserMenu(){$('userDropdown').classList.toggle('open');}
@@ -214,6 +224,7 @@ function checkReality(){if(!state.user)return;if((Date.now()-state.sessionStart)
 // ===== INIT =====
 window.addEventListener('load',function(){
     var saved=localStorage.getItem('gv_user');if(saved){try{state.user=JSON.parse(saved);updateUI();}catch(e){}}
+    if(apiToken()){apiFetch('/api/me').then(function(result){state.user=result.user;save();updateUI();renderPage(document.querySelector('.page.active')?.id.replace('page-','')||'home');}).catch(function(){localStorage.removeItem('gv_api_token');});}
     setInterval(checkReality,60000);renderHome();
     document.querySelectorAll('.stat-num').forEach(function(el){var target=parseInt(el.dataset.target);var c=0;var s=target/60;var t=setInterval(function(){c+=s;if(c>=target){c=target;clearInterval(t);}el.textContent=Math.floor(c).toLocaleString('pt-BR');},30);});
     setTimeout(function(){var p=$('preloader');if(p)p.classList.add('hidden');},1500);
@@ -251,24 +262,22 @@ async function submitWithdraw(){
     if(!amount||amount<10){showToast('Mínimo R$ 10','error');return;}
     if(amount>state.user.balance){showToast('Saldo insuficiente','error');return;}
     try {
+        var saved=await apiFetch('/api/withdrawals',{method:'POST',body:JSON.stringify({fullName:name,cpf:cpf,pixKey:pix,amount:amount})});
+        state.user=saved.user;save();updateUI();closeModal();
         var response=await fetch(GATEWAY_URL+'/api/withdraw-requests',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({email:state.user.email,name:name,cpf:cpf,pixKey:pix,amount:amount})
-        });
-        var result=await response.json();
-        if(!response.ok||!result.success) throw new Error(result.error||'Falha na fila');
-        var withdrawals=JSON.parse(localStorage.getItem('gv_withdrawals')||'[]');
-        withdrawals.push(Object.assign({},result.request,{localId:'WD'+Date.now()}));
-        localStorage.setItem('gv_withdrawals',JSON.stringify(withdrawals));
-        state.user.balance-=amount;state.user.withdrawn+=amount;
-        state.user.transactions.unshift({t:'withdraw',a:-amount,d:'Saque LofiPay R$ '+amount.toFixed(2),dt:fmt(),id:result.request.id});
-        var all=getUsers();var idx=-1;for(var i=0;i<all.length;i++){if(all[i].email===state.user.email){idx=i;break;}}
-        if(idx>=0)all[idx]=state.user;else all.push(state.user);setUsers(all);
-        save();updateUI();closeModal();
-        showToast('Saque via LofiPay solicitado!','success');
+        }).catch(function(){return null;});
+        if(response&&response.ok){
+            var result=await response.json();
+            localStorage.setItem('gv_gateway_withdrawal',JSON.stringify(result.request));
+            showToast('Saque enviado para pagamento LofiPay!','success');
+        }else{
+            showToast('Saque salvo na fila interna.','success');
+        }
     } catch(error) {
-        showToast('Fila offline. Saque não enviado e saldo mantido.','error');
+        showToast(error.message||'Não foi possível solicitar o saque','error');
     }
 }
 function requestWithdraw(){
