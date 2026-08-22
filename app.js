@@ -1,6 +1,7 @@
 // GameVault v5.0.0 - 100% Frontend, zero erros
 const PIX_KEY='fff503e1-60b3-457b-bdc4-ddf2c892cfda';
 const API_URL='https://dig-solved-facts-consequently.trycloudflare.com';
+const API_URLS=[API_URL];
 const GATEWAY_URL='https://stuck-ccd-presents-cube.trycloudflare.com';
 
 const GAMES=[
@@ -50,10 +51,17 @@ function apiToken(){return localStorage.getItem('gv_api_token')||'';}
 async function apiFetch(path,options){
     options=options||{};options.headers=Object.assign({'Content-Type':'application/json'},options.headers||{});
     if(apiToken())options.headers.Authorization='Bearer '+apiToken();
-    var response=await fetch(API_URL+path,options);
+    var lastError=null;
+    for(var apiUrl of localStorage.getItem('gv_api_url')?[localStorage.getItem('gv_api_url'),API_URL]:API_URLS){
+        try{
+            var response=await fetch(apiUrl+path,options);
     var data=await response.json().catch(function(){return{};});
+    if(response.status===401&&path!=='/api/auth/login')localStorage.removeItem('gv_api_token');
     if(!response.ok)throw new Error(data.error||('HTTP '+response.status));
     return data;
+        }catch(error){lastError=error;if(error.message!=='Failed to fetch')throw error;}
+    }
+    throw new Error(lastError?.message||'Falha técnica: servidor offline');
 }
 
 // ===== PAGES =====
