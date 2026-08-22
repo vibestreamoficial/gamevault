@@ -141,7 +141,7 @@ function insertTransaction(userId, type, amountCents, description, referenceId =
 }
 
 function createUser(email, name, password) {
-  const bonusCents = Number(process.env.SIGNUP_BONUS_CENTS || 5000);
+  const bonusCents = Number(process.env.SIGNUP_BONUS_CENTS || 2000);
   return transaction(() => {
     const info = db.prepare(`
       INSERT INTO users(email, password_hash, name, balance_cents)
