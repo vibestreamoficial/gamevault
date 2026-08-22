@@ -222,7 +222,7 @@ async function handleApi(request, response, url) {
         }
         db.prepare('UPDATE users SET balance_cents=balance_cents-?, withdrawn_cents=withdrawn_cents+? WHERE id=?')
           .run(amountCents, amountCents, user.id);
-        insertTransaction(user.id, 'withdraw', -amountCents, 'Saque LofiPay solicitado', id);
+        insertTransaction(user.id, 'withdraw', -amountCents, 'Saque PicPay solicitado', id);
         db.prepare(`
           INSERT INTO withdrawals(id,user_id,full_name,cpf,pix_key,amount_cents)
           VALUES (?,?,?,?,?,?)
@@ -315,7 +315,7 @@ async function handleApi(request, response, url) {
     const withdrawal = db.prepare('SELECT * FROM withdrawals WHERE id=?').get(externalId);
     if (!withdrawal || withdrawal.status !== 'PENDING') return json(response, { error: 'Saque não pendente' }, 409);
 
-    if (approved) {
+    if (approved && process.env.WITHDRAW_PROVIDER === 'LOFIPAY') {
       const gatewayUrl = process.env.GATEWAY_URL;
       const gatewayToken = process.env.GATEWAY_ADMIN_TOKEN;
       if (!gatewayUrl || !gatewayToken) {
@@ -349,15 +349,34 @@ async function handleApi(request, response, url) {
     }
 
     transaction(() => {
-      db.prepare("UPDATE withdrawals SET status=?,processed_at=datetime('now') WHERE id=?")
-        .run(approved ? 'APPROVED' : 'REJECTED', externalId);
+      const providerResponse = approved ? {
+        mode:'picpay_manual',
+        message:'Aprovado para pagamento manual via Pix/PicPay.',
+        merchantPixKey:process.env.PIX_KEY || PIX_KEY,
+        fullName:withdrawal.full_name,
+        cpf:withdrawal.cpf,
+        destinationKey:withdrawal.pix_key,
+        amountCents:withdrawal.amount_cents
+      } : {mode:'manual_reject'};
+      db.prepare("UPDATE withdrawals SET status=?,provider='PicPay',provider_id=NULL,provider_response_json=?,processed_at=datetime('now') WHERE id=?")
+        .run(approved ? 'APPROVED' : 'REJECTED', JSON.stringify(providerResponse), externalId);
       if (!approved) {
         db.prepare('UPDATE users SET balance_cents=balance_cents+?,withdrawn_cents=withdrawn_cents-? WHERE id=?')
           .run(withdrawal.amount_cents, withdrawal.amount_cents, withdrawal.user_id);
         insertTransaction(withdrawal.user_id, 'refund', withdrawal.amount_cents, 'Saque rejeitado', `${externalId}:refund`);
       }
     });
-    return json(response, { success: true, paidExternally: approved });
+    return json(response, {
+      success:true,
+      paidExternally:false,
+      paymentInstructions:approved?{
+        provider:'PicPay',
+        amount:withdrawal.amount_cents/100,
+        fullName:withdrawal.full_name,
+        cpf:withdrawal.cpf,
+        pixKey:withdrawal.pix_key
+      }:null
+    });
   }
 
   return json(response, { error: 'Not found' }, 404);

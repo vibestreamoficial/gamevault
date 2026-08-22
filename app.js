@@ -2,7 +2,6 @@
 const PIX_KEY='fff503e1-60b3-457b-bdc4-ddf2c892cfda';
 const API_URL='https://dig-solved-facts-consequently.trycloudflare.com';
 const API_URLS=[API_URL];
-const GATEWAY_URL='https://stuck-ccd-presents-cube.trycloudflare.com';
 
 const GAMES=[
 {id:1,name:"Quiz Milionário",category:"trivia",icon:"🧠",prize:150,entry:5,players:2340,badge:"hot"},
@@ -109,7 +108,7 @@ function showModal(type){
         c.innerHTML='<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2>Criar Conta</h2><div class="input-group"><label>Nome</label><input type="text" id="regName" placeholder="Seu nome"></div><div class="input-group"><label>Email</label><input type="email" id="regEmail" placeholder="seu@email.com"></div><div class="input-group"><label>Senha</label><input type="password" id="regPass" placeholder="Min 6"></div><div class="input-group"><label><input type="checkbox" id="regAge"> Tenho 18+</label></div><button class="btn btn-primary" onclick="doRegister()"><i class="fas fa-user-plus"></i> Cadastrar</button><div class="alt-action">Já tem conta? <a href="#" onclick="showModal(\'login\')">Entrar</a></div>';
     }else if(type==='deposit'){
         c.innerHTML='<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2><i class="fas fa-coins" style="color:var(--accent-gold);"></i> Depositar via PIX</h2><p style="color:var(--text-secondary);text-align:center;margin-bottom:20px;">Pagamento na hora!</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;"><button class="btn btn-outline" onclick="startDeposit(5)" style="font-size:18px;padding:20px;"><i class="fas fa-coins"></i><br>R$ 5</button><button class="btn btn-outline" onclick="startDeposit(10)" style="font-size:18px;padding:20px;"><i class="fas fa-coins"></i><br>R$ 10</button><button class="btn btn-outline" onclick="startDeposit(15)" style="font-size:18px;padding:20px;"><i class="fas fa-coins"></i><br>R$ 15</button><button class="btn btn-primary" onclick="startDeposit(20)" style="font-size:18px;padding:20px;"><i class="fas fa-fire"></i><br>R$ 20</button></div><div class="input-group"><label>Valor customizado</label><input type="number" id="customDeposit" placeholder="Ex: 30" min="1"><button class="btn btn-primary" onclick="startDeposit(Number(document.getElementById(\'customDeposit\').value))" style="width:100%;margin-top:8px;">Gerar PIX</button></div>';
-    }else if(type==='withdraw'){        c.innerHTML='<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2><i class="fas fa-money-bill-wave" style="color:var(--accent-green);"></i> Sacar via LofiPay</h2><p style="color:var(--text-secondary);text-align:center;margin-bottom:16px;font-size:13px;">Saldo: <strong style="color:var(--accent-gold);">R$ '+state.user.balance.toFixed(2).replace('.',',')+'</strong></p><div class="input-group"><label>Nome Completo</label><input type="text" id="wName" placeholder="Como está no CPF" value="'+(state.user.name||'')+'"></div><div class="input-group"><label>CPF</label><input type="text" id="wCPF" placeholder="000.000.000-00" maxlength="14" oninput="maskCPF(this)"></div><div class="input-group"><label>Chave LofiPay</label><input type="text" id="wPix" placeholder="CPF, email ou telefone"></div><div class="input-group"><label>Valor (R$)</label><input type="number" id="wAmount" placeholder="Mínimo R$ 10" min="10" max="'+state.user.balance+'"></div><button class="btn btn-success" onclick="submitWithdraw()" style="width:100%;"><i class="fas fa-check"></i> Solicitar Saque</button><p style="color:var(--text-secondary);font-size:11px;text-align:center;margin-top:12px;">Solicitação enviada para aprovação. Pagamento via LofiPay em até 24h.</p>';
+    }else if(type==='withdraw'){        c.innerHTML='<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2><i class="fas fa-money-bill-wave" style="color:var(--accent-green);"></i> Sacar via PicPay</h2><p style="color:var(--text-secondary);text-align:center;margin-bottom:16px;font-size:13px;">Saldo: <strong style="color:var(--accent-gold);">R$ '+state.user.balance.toFixed(2).replace('.',',')+'</strong></p><div class="input-group"><label>Nome Completo</label><input type="text" id="wName" placeholder="Como está no CPF" value="'+(state.user.name||'')+'"></div><div class="input-group"><label>CPF</label><input type="text" id="wCPF" placeholder="000.000.000-00" maxlength="14" oninput="maskCPF(this)"></div><div class="input-group"><label>Chave Pix (PicPay)</label><input type="text" id="wPix" placeholder="UUID, CPF, email ou telefone"></div><div class="input-group"><label>Valor (R$)</label><input type="number" id="wAmount" placeholder="Mínimo R$ 10" min="10" max="'+state.user.balance+'"></div><button class="btn btn-success" onclick="submitWithdraw()" style="width:100%;"><i class="fas fa-check"></i> Solicitar Saque</button><p style="color:var(--text-secondary);font-size:11px;text-align:center;margin-top:12px;">Solicitação enviada para aprovação. Pagamento via PicPay em até 24h.</p>';
     }else if(type==='pix'){
         c.innerHTML='<button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><h2><i class="fas fa-qrcode" style="color:var(--accent-cyan);"></i> PIX</h2><div style="text-align:center;margin-bottom:16px;"><div style="font-size:36px;font-weight:900;color:var(--accent-gold);margin-bottom:8px;">R$ '+window._depAmt+',00</div></div><div style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:16px;word-break:break-all;font-size:11px;font-family:monospace;margin-bottom:16px;user-select:all;" id="pixCode">'+(window._depPayload||'Gerando...')+'</div><button class="btn btn-primary" onclick="copyPix()" style="width:100%;margin-bottom:8px;"><i class="fas fa-copy"></i> Copiar PIX</button><button class="btn btn-success" onclick="confirmDeposit()" style="width:100%;margin-bottom:12px;"><i class="fas fa-check"></i> Já Paguei</button>';
     }
@@ -272,18 +271,7 @@ async function submitWithdraw(){
     try {
         var saved=await apiFetch('/api/withdrawals',{method:'POST',body:JSON.stringify({fullName:name,cpf:cpf,pixKey:pix,amount:amount})});
         state.user=saved.user;save();updateUI();closeModal();
-        var response=await fetch(GATEWAY_URL+'/api/withdraw-requests',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({email:state.user.email,name:name,cpf:cpf,pixKey:pix,amount:amount})
-        }).catch(function(){return null;});
-        if(response&&response.ok){
-            var result=await response.json();
-            localStorage.setItem('gv_gateway_withdrawal',JSON.stringify(result.request));
-            showToast('Saque enviado para pagamento LofiPay!','success');
-        }else{
-            showToast('Saque salvo na fila interna.','success');
-        }
+        showToast('Saque via PicPay solicitado!','success');
     } catch(error) {
         showToast(error.message||'Não foi possível solicitar o saque','error');
     }
